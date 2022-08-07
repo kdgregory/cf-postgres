@@ -1,0 +1,29 @@
+##
+## Example template that exercises the custom resource.
+##
+
+
+AWSTemplateFormatVersion:               "2010-09-09"
+Description:                            "Uses the cf_postgres custom resource"
+
+Parameters:
+
+  LambdaArn:
+    Description:                        "ARN of the Lambda that implements the custom resource"
+    Type:                               "String"
+
+  SecretArn:
+    Description:                        "ARN of the Secret that holds connection information"
+    Type:                               "String"
+
+
+Resources:
+
+  UserDatabase:
+    Type:                               "Custom::CFPostgres-Database"
+    Properties:
+      ServiceToken:                     !Ref LambdaArn
+      Action:                           "CreateDatabase"
+      SecretArn:                        !Ref SecretArn
+      DatabaseName:                     "test"
+
