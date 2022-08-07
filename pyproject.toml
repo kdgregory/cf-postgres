@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "cf_postgres"
+version = "0.0.1"
+description = "A custom resource for provisioning Postgres databases"
+authors = []
+
+[tool.poetry.dependencies]
+python              = "^3.8"
+requests            = "~2.27.1"
+sqlalchemy          = "~1.4.32"
+pg8000              = "~1.24.1"
+
+[tool.poetry.dev-dependencies]
+boto3               = "^1.21.1"     # this is provided for Lambdas, needed for dev testing
+pytest              = "~7.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
