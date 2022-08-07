@@ -2,33 +2,30 @@
 
 LAMBDA_NAME     ?= cf_postgres
 
-POETRY_DIST_DIR := $(PWD)/dist
+SRC_DIR         := $(PWD)/src
 BUILD_DIR       := $(PWD)/build
-DEPLOY_DIR      := $(PWD)
+LIB_DIR         := $(BUILD_DIR)/lib
 ARTIFACT        := lambda.zip
 
 default: package
 
 deploy: package
-	aws lambda update-function-code --function-name $(LAMBDA_NAME) --zip-file fileb://$(DEPLOY_DIR)/$(ARTIFACT)
+	aws lambda update-function-code --function-name $(LAMBDA_NAME) --zip-file fileb://$(BUILD_DIR)/$(ARTIFACT)
 
 package: test
-	poetry build
-	mkdir -p $(BUILD_DIR)
-	poetry run pip install --upgrade -t $(BUILD_DIR) $(POETRY_DIST_DIR)/*.whl
-	cd $(BUILD_DIR) ; zip -r $(DEPLOY_DIR)/$(ARTIFACT) . -x '*.pyc'
+	cd $(SRC_DIR) ; zip -q -r $(BUILD_DIR)/$(ARTIFACT) . -x '*.pyc'
+	cd $(LIB_DIR) ; zip -q -r $(BUILD_DIR)/$(ARTIFACT) . -x '*.pyc'
 
-test:	init quicktest
+test:	$(BUILD_DIR) quicktest
 
 quicktest:
-	# poetry run pytest
-	echo "no tests yet"
+	PYTHONPATH=$(LIB_DIR):$(SRC_DIR) python -m unittest tests/*.py
 
-init:
-	poetry install
+
+$(BUILD_DIR): requirements.txt
+	mkdir -p $(BUILD_DIR)
+	pip install -U -r requirements.txt -t $(LIB_DIR)
 
 clean:
-	rm -rf $(POETRY_DIST_DIR)
 	rm -rf $(BUILD_DIR)
-	rm $(DEPLOY_DIR)/$(ARTIFACT)
 	rm -rf */__pycache__
