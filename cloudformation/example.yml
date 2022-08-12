@@ -23,7 +23,7 @@ Resources:
     Type:                               "Custom::CFPostgres-Database"
     Properties:
       ServiceToken:                     !Ref LambdaArn
-      Action:                           "CreateDatabase"
+      Action:                           "Testing"
       SecretArn:                        !Ref SecretArn
-      DatabaseName:                     "test"
+      TestResourceName:                 "test"
 

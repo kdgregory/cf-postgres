@@ -29,13 +29,19 @@ LOGGER.setLevel(logging.DEBUG)
 
 
 def verify_property(request, response, name):
+    """ Attempts to retrieve a named property from the request object. If not present,
+        it sets the failure fields on the response object. Caller is responsible to
+        abort processing.
+        """
     value = request.get(name)
-    if result:
+    if value:
+        LOGGER.debug(f"{name}: {value}")
         return value
     else:
         LOGGER.error(f"missing property \"{name}\"")
         response['Status'] = "FAILED"
-        response['Reason'] = "Missing property \"{name}\""
+        response['Reason'] = f"Missing property \"{name}\""
+        return None
 
 
 @lru_cache(maxsize=1)
@@ -54,4 +60,5 @@ def retrieve_secret(secret_arn):
 def db_url(secret):
     """ Constructs a database connection URL from the provided dict (assumes fields
         as defined by AWS::SecretsManager::SecretTargetAttachment).
+        """
     return f"postgresql+pg8000://{secret['username']}:{secret['password']}@{secret['host']}:{secret['port']}/{secret['dbname']}"
