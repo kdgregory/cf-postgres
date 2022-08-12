@@ -1,0 +1,65 @@
+##
+## Template to deploy the custom resource Lambda and related objects. 
+##
+## After applying this template, you must run "make deploy" to deploy the
+## custom resource Lambda before using it.
+##
+
+
+AWSTemplateFormatVersion:               "2010-09-09"
+Description:                            "Manages the cf_postgres custom resource Lambda"
+
+Parameters:
+
+  LambdaName:
+    Description:                        "The name for the deployed Lambda that implements the custom resources"
+    Type:                               "String"
+    Default:                            "cf_postgres"
+
+
+Resources:
+
+  LogGroup:
+    Type:                               "AWS::Logs::LogGroup"
+    DeletionPolicy:                     "Delete"
+    Properties:
+      LogGroupName:                     !Sub "/aws/lambda/${LambdaName}"
+      RetentionInDays:                  7
+
+
+  ExecutionRole:
+    Type:                               "AWS::IAM::Role"
+    Properties:
+      RoleName:                         !Sub "${LambdaName}-ExecutionRole-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version:                        "2012-10-17"
+        Statement:
+          Effect:                       "Allow"
+          Action:                       "sts:AssumeRole"
+          Principal:
+            Service:                    "lambda.amazonaws.com"
+      ManagedPolicyArns:
+        -                               "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName:                   !Sub "RetrieveSecrets"
+          PolicyDocument:
+            Version:                    "2012-10-17"
+            Statement:
+              - Effect:                 "Allow"
+                Action:
+                  -                     "logs:GetSecretValue"
+                Resource:               "*"
+
+
+  LambdaFunction:
+    Type:                               "AWS::Lambda::Function"
+    Properties:
+      FunctionName:                     !Ref LambdaName
+      Description:                      "CloudFormation custome resource for managing Postgres databases"
+      Runtime:                          "python3.8"
+      Role:                             !GetAtt ExecutionRole.Arn
+      Handler:                          "cf_postgres.lambda_handler.handle"
+      Code:
+        ZipFile:                        "## must deploy actual handler via build script ##"
+      MemorySize:                       1024
+      Timeout:                          60

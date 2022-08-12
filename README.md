@@ -8,8 +8,33 @@ to provide that functionality.
 
 # Usage
 
+To use, you must first build and deploy the Lambda. This is a two-step process:
 
-# Features
+1. Create the Lambda resources, using [CloudFormation](cloudformation/deploy.yml).
+
+   By default, the Lambda is named `cf_postgres`. This CloudFormation script lets
+   you provide another name, but you must use that name in the next step.
+
+   **Note:** the template grants the Lambda the ability to retrieve all secrets.
+   For security, you should implement a tagging strategy, and use a condition that
+   restricts those secrets to the specified tag. The template provides one such
+   implementation, commented-out.
+
+2. Build and deploy the Lambda, using the provided [Makefile](Makefile).
+
+At this point, you can use the resource in your CloudFormation templates:
+
+```
+```
+
+All invocations require the `SecretArn` property, which specifies a Secrets Manager
+secret that contains [database connection information](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html#reference_secret_json_structure_rds-postgres).
+
+They also require the `Action` property, which specifies the action to take, along
+with any properties required by that action. See below for more information.
+
+
+# Actions
 
 
 # Roadmap
