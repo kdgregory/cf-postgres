@@ -28,7 +28,7 @@ DEFAULT_EVENT           = {
                             "ResourceProperties": {
                                 "ServiceToken": EXPECTED_SERVICE_TOKEN,
                                 "Action": "Testing",
-                                "SecretArn": EXPECTED_SECRET_ARN,
+                                "AdminSecretArn": EXPECTED_SECRET_ARN,
                                 "TestResourceName": EXPECTED_PHYSICAL_ID
                             }
                           }
@@ -104,7 +104,7 @@ class TestLambdaHandler(unittest.TestCase):
 
     def test_missing_secret_arn(self):
         event = copy.deepcopy(DEFAULT_EVENT)
-        del event["ResourceProperties"]["SecretArn"]
+        del event["ResourceProperties"]["AdminSecretArn"]
         self.invoke_lambda(event)
         self.open_connection_mock.assert_not_called()
         self.send_response_mock.assert_called_once_with(EXPECTED_RESPONSE_URL, {

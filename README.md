@@ -27,11 +27,11 @@ At this point, you can use the resource in your CloudFormation templates:
 ```
 ```
 
-All invocations require the `SecretArn` property, which specifies a Secrets Manager
-secret that contains [database connection information](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html#reference_secret_json_structure_rds-postgres).
+All invocations require an `Action` property, which specifies the action to take.
+See [below](#actions) for all implemented actions.
 
-They also require the `Action` property, which specifies the action to take, along
-with any properties required by that action. See below for more information.
+You must also specify the `AdminSecretArn` property, which specifies a Secrets Manager
+secret that contains [database connection information](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html#reference_secret_json_structure_rds-postgres) for the database admin.
 
 
 # Actions

@@ -45,7 +45,7 @@ def handle(event, context):
     }
     props = event['ResourceProperties']
     action = util.verify_property(props, response, 'Action')
-    secret_arn = util.verify_property(props, response, 'SecretArn')
+    secret_arn = util.verify_property(props, response, 'AdminSecretArn')
     if action and secret_arn:
         try:
             with open_connection(secret_arn) as conn:
