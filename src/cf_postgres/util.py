@@ -49,16 +49,21 @@ def retrieve_secret(secret_arn):
     """ Retrieves the named secret and parses its contents as JSON.
         """
     LOGGER.debug(f"retrieving secret: {secret_arn}")
-    try:
-        sm_client = boto3.client('secretsmanager')
-        secret_json = sm_client.get_secret_value(SecretId=secret_arn)['SecretString']
-        return json.loads(secret_json)
-    except:
-        LOGGER.error("failed to retrieve secret", exc_info=True)
+    sm_client = boto3.client('secretsmanager')
+    secret_json = sm_client.get_secret_value(SecretId=secret_arn)['SecretString']
+    return json.loads(secret_json)
 
 
-def db_url(secret):
-    """ Constructs a database connection URL from the provided dict (assumes fields
-        as defined by AWS::SecretsManager::SecretTargetAttachment).
+def retrieve_pg8000_secret(secret_arn):
+    """ Retrieves the named secret and extracts the keyword arguments used for
+        making a PG8000 connection.
         """
-    return f"postgresql+pg8000://{secret['username']}:{secret['password']}@{secret['host']}:{secret['port']}/{secret['dbname']}"
+    secret = retrieve_secret(secret_arn)
+    return {
+        'user':             secret['username'],
+        'password':         secret['password'],
+        'host':             secret['host'],
+        'database':         secret['dbname'],
+        'port':             int(secret['port']),
+        'application_name': "cf-postgres",
+    }

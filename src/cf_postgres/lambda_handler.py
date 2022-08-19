@@ -19,6 +19,7 @@
 import boto3
 import json
 import logging
+import pg8000.dbapi
 import requests
 import sys
 import uuid
@@ -34,7 +35,7 @@ HANDLERS = [ testing ]
 
 
 def handle(event, context):
-    print(json.dumps(event), file=sys.stderr)   # useful for debugging
+    # print(json.dumps(event), file=sys.stderr)   # useful for debugging
     response_url = event['ResponseURL']
     response = {
         'RequestId':            event['RequestId'],
@@ -46,13 +47,29 @@ def handle(event, context):
     action = util.verify_property(props, response, 'Action')
     secret_arn = util.verify_property(props, response, 'SecretArn')
     if action and secret_arn:
-        try_handlers(action, secret_arn, props, response)
+        try:
+            with open_connection(secret_arn) as conn:
+                try_handlers(action, conn, props, response)
+        except Exception as ex:
+            LOGGER.error("unhandled exception", exc_info=True)
+            response['Status'] = "FAILED"
+            response['Reason'] = f"Unhandled exception: \"{ex}\""
     send_response(response_url, response)
 
 
-def try_handlers(action, secret_arn, props, response):
+def open_connection(secret_arn):
+    """ Establishes the connection to the database. Any exceptions are allowed
+        to propagate.
+        """
+    connection_info = util.retrieve_pg8000_secret(secret_arn)
+    return pg8000.dbapi.connect(**connection_info)
+
+
+def try_handlers(action, conn, props, response):
+    """ Runs through the list of handlers, returning once one handles the action.
+        """
     for handler in HANDLERS:
-        if handler.try_handle(action, secret_arn, props, response):
+        if handler.try_handle(action, conn, props, response):
             return
     LOGGER.error(f"unhandled action: {action}")
     response['Status'] = "FAILED"
