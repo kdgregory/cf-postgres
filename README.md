@@ -36,14 +36,25 @@ secret that contains [database connection information](https://docs.aws.amazon.c
 
 # Actions
 
+## CreateUser
+
+Creates or deletes a Postgres user; update is a no-op.
+
+### Configuration properties
+
+| Property    | Description
+|-------------|-------------
+| `Username`  | The name of the user. Required.
+| `Password`  | A password for the user. Optional.
+
+### Return values
+
 
 # Roadmap
 
 `Database`: creates an additional, non-default database.
 
 `Schema`: creates a schema within an existing database.
-
-`User`: creates a database user with username, password, and a default database.
 
 `Grant`: grants a user permission to perform some action.
 

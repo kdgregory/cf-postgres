@@ -43,17 +43,17 @@ def handle(event, context):
         'LogicalResourceId':    event['LogicalResourceId'],
         'PhysicalResourceId':   "to_be_populated",              # required, even for failure
     }
-    props = event['ResourceProperties']
-    action = util.verify_property(props, response, 'Action')
-    secret_arn = util.verify_property(props, response, 'AdminSecretArn')
-    if action and secret_arn:
-        try:
+    try:
+        request_type = event['RequestType']
+        props = event['ResourceProperties']
+        action = util.verify_property(props, response, 'Action')
+        secret_arn = util.verify_property(props, response, 'AdminSecretArn')
+        if action and secret_arn:
             with open_connection(secret_arn) as conn:
-                try_handlers(action, conn, props, response)
-        except Exception as ex:
-            LOGGER.error("unhandled exception", exc_info=True)
-            response['Status'] = "FAILED"
-            response['Reason'] = f"Unhandled exception: \"{ex}\""
+                try_handlers(action, request_type, conn, props, response)
+    except Exception as ex:
+        LOGGER.error("unhandled exception", exc_info=True)
+        util.report_failure(response, f"Unhandled exception: \"{ex}\"")
     send_response(response_url, response)
 
 
@@ -65,15 +65,14 @@ def open_connection(secret_arn):
     return pg8000.dbapi.connect(**connection_info)
 
 
-def try_handlers(action, conn, props, response):
+def try_handlers(action, request_type, conn, props, response):
     """ Runs through the list of handlers, returning once one handles the action.
         """
     for handler in HANDLERS:
-        if handler.try_handle(action, conn, props, response):
+        if handler.try_handle(action, request_type, conn, props, response):
             return
     LOGGER.error(f"unhandled action: {action}")
-    response['Status'] = "FAILED"
-    response['Reason'] = f"Unknown action: \"{action}\""
+    util.report_failure(response, f"Unknown action: \"{action}\"")
 
 
 def send_response(response_url, response):

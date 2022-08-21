@@ -9,6 +9,7 @@ from cf_postgres.handlers import testing as test_handler
 
 # event properties that will be asserted in response
 
+EXPECTED_REQUEST_TYPE   = "Create"
 EXPECTED_SERVICE_TOKEN  = "arn:aws:lambda:us-east-1:123456789012:function:cf_postgres"
 EXPECTED_RESPONSE_URL   = "https://example.com/blahblahblah"
 EXPECTED_STACK_ID       = "arn:aws:cloudformation:us-east-1:123456789012:stack/CF-Postgres-Example-4/388d1040-18a6-11ed-8d5d-0e8fec9940a1"
@@ -18,7 +19,7 @@ EXPECTED_PHYSICAL_ID    = "testing"
 EXPECTED_SECRET_ARN     = "arn:aws:secretsmanager:us-east-1:123456789012:secret:database-1-admin-5z4FyE"
 
 DEFAULT_EVENT           = {
-                            "RequestType": "Create",
+                            "RequestType": EXPECTED_REQUEST_TYPE,
                             "ServiceToken": EXPECTED_SERVICE_TOKEN,
                             "ResponseURL": EXPECTED_RESPONSE_URL,
                             "StackId": EXPECTED_STACK_ID,
@@ -55,6 +56,7 @@ class TestLambdaHandler(unittest.TestCase):
         self.invoke_lambda(event)
         self.open_connection_mock.assert_called_once_with(
             EXPECTED_SECRET_ARN)
+        self.assertEqual(test_handler.saved_request_type, EXPECTED_REQUEST_TYPE)
         self.assertEqual(test_handler.saved_connection, sentinel.connection)
         self.send_response_mock.assert_called_once_with(
             EXPECTED_RESPONSE_URL,

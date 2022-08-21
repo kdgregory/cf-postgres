@@ -39,9 +39,28 @@ def verify_property(request, response, name):
         return value
     else:
         LOGGER.error(f"missing property \"{name}\"")
-        response['Status'] = "FAILED"
-        response['Reason'] = f"Missing property \"{name}\""
+        report_failure(response, f"Missing property \"{name}\"")
         return None
+
+
+def report_success(response, physical_resource_id, data=None):
+    """ Populates the response for successful operation. Must include a valid
+        resource ID, may include a dict of additional data that can be accessed
+        via Fn::GetAtt.
+        """
+    response['Status']             = "SUCCESS"
+    response['PhysicalResourceId'] = physical_resource_id
+    if data:
+        response['Data']           = data
+
+
+def report_failure(response, reason, physical_resource_id=None):
+    """ Populates the response for failed operation. Must include a reason; may
+        include an actual resource ID, or will substitute with "unknown".
+        """
+    response['Status']              = "FAILED"
+    response['Reason']              = reason
+    response['PhysicalResourceId']  = physical_resource_id or "unknown"
 
 
 @lru_cache(maxsize=1)

@@ -1,13 +1,14 @@
 """ A dummy handler used for unit tests.
     """
 
-saved_connection = None
+from cf_postgres import util
 
-def try_handle(action, conn, props, response):
+
+def try_handle(action, request_type, conn, props, response):
     if action != "Testing":
         return False
-    global saved_connection
+    global saved_request_type, saved_connection
+    saved_request_type = request_type
     saved_connection = conn
-    response['Status']             = "SUCCESS"
-    response['PhysicalResourceId'] = props.get("TestResourceName")
+    util.report_success(response, props.get("TestResourceName"))
     return True
