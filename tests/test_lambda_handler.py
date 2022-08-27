@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import Mock, MagicMock, patch, sentinel, ANY
 
 from cf_postgres import lambda_handler
-from cf_postgres.handlers import testing as test_handler
+from cf_postgres.handlers import test_handler
 
 
 # event properties that will be asserted in response

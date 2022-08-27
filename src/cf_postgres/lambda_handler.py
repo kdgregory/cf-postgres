@@ -19,19 +19,23 @@
 import boto3
 import json
 import logging
-import pg8000.dbapi
-import requests
 import sys
 import uuid
 
+import pg8000.dbapi
+import requests
+
 from cf_postgres import util
-import cf_postgres.handlers.testing as testing
+from cf_postgres.handlers import test_handler, user_handler
 
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
-HANDLERS = [ testing ]
+HANDLERS = [
+    test_handler, 
+    user_handler, 
+    ]
 
 
 def handle(event, context):
@@ -62,6 +66,8 @@ def open_connection(secret_arn):
         to propagate.
         """
     connection_info = util.retrieve_pg8000_secret(secret_arn)
+    LOGGER.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
+                f"database {connection_info.get('database')} as user {connection_info.get('user')}")
     return pg8000.dbapi.connect(**connection_info)
 
 

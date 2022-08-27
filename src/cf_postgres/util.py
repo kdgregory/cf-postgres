@@ -20,8 +20,9 @@ import boto3
 import json
 import logging
 import os
+import time
 
-from functools import lru_cache
+import pg8000.dbapi
 
 
 LOGGER = logging.getLogger(__name__)
@@ -63,8 +64,7 @@ def report_failure(response, reason, physical_resource_id=None):
     response['PhysicalResourceId']  = physical_resource_id or "unknown"
 
 
-@lru_cache(maxsize=1)
-def retrieve_secret(secret_arn):
+def retrieve_json_secret(secret_arn):
     """ Retrieves the named secret and parses its contents as JSON.
         """
     LOGGER.debug(f"retrieving secret: {secret_arn}")
@@ -74,10 +74,11 @@ def retrieve_secret(secret_arn):
 
 
 def retrieve_pg8000_secret(secret_arn):
-    """ Retrieves the named secret and extracts the keyword arguments used for
-        making a PG8000 connection.
+    """ Retrieves the named secret, which is presumed to contain standard RDS
+        connection information, and extracts the keyword arguments used for a
+        PG8000 connection.
         """
-    secret = retrieve_secret(secret_arn)
+    secret = retrieve_json_secret(secret_arn)
     return {
         'user':             secret['username'],
         'password':         secret['password'],
@@ -86,3 +87,19 @@ def retrieve_pg8000_secret(secret_arn):
         'port':             int(secret['port']),
         'application_name': "cf-postgres",
     }
+
+
+def connect_to_db(connection_info):
+    """ Attempts to connect to the database.
+
+        This method attempts a limited number of retries if unable to connect. This
+        is intended to support integration tests, which run immediately after the
+        local Postgres container is started. In real-world use, we hope to connect
+        successfully on the first try.
+        """
+    for x in range(40):
+        try:
+            return pg8000.dbapi.connect(**connection_info)
+        except:
+            time.sleep(0.25)
+    raise Exception("timed-out waiting for container to start")
