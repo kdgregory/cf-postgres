@@ -1,6 +1,9 @@
 ##
 ## Example template that exercises the custom resource.
 ##
+## This creates a minimal-sized, publicly-accessible RDS database. The database,
+## and all related resources, are named after the stack.
+##
 
 
 AWSTemplateFormatVersion:               "2010-09-09"
@@ -8,22 +11,147 @@ Description:                            "Uses the cf_postgres custom resource"
 
 Parameters:
 
+  VpcId:
+    Description:                        "VPC where the database will be deployed"
+    Type:                               "AWS::EC2::VPC::Id"
+
+  SubnetIds:
+    Description:                        "Public subnets in that VPC"
+    Type:                               "List<AWS::EC2::Subnet::Id>"
+
   LambdaArn:
     Description:                        "ARN of the Lambda that implements the custom resource"
-    Type:                               "String"
-
-  SecretArn:
-    Description:                        "ARN of the Secret that holds connection information"
     Type:                               "String"
 
 
 Resources:
 
-  UserDatabase:
-    Type:                               "Custom::CFPostgres-Database"
+  ##
+  ## database and related resources
+  ##
+
+  AdminSecret:
+    Type:                               "AWS::SecretsManager::Secret"
+    Properties:
+      Name:                             !Sub "database/${AWS::StackName}-Admin"
+      Description:                      !Sub "RDS admin user and password for database ${AWS::StackName}"
+      GenerateSecretString:
+        SecretStringTemplate:           !Sub |
+                                        {
+                                          "username": "postgres"
+                                        }
+        GenerateStringKey:              "password"
+        ExcludePunctuation:             true  # easier to select for those times that you need to copy/paste
+        PasswordLength:                 64    # double the default length to compensate for limited characters
+
+
+  AdminSecretAttachment:
+    Type:                               "AWS::SecretsManager::SecretTargetAttachment"
+    Properties: 
+      SecretId:                         !Ref AdminSecret
+      TargetId:                         !Ref DBInstance
+      TargetType:                       "AWS::RDS::DBInstance"
+
+
+  DBSecurityGroup:
+    Type:                               "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName:                        !Sub "${AWS::StackName}-${AWS::Region}"
+      GroupDescription:                 !Sub "Controls access to the RDS instance managed by CloudFormation stack ${AWS::StackName}"
+      VpcId:                            !Ref VpcId
+
+
+  DBSecurityGroupIngress:
+    Type:                               "AWS::EC2::SecurityGroupIngress"
+    Properties: 
+      GroupId:                          !Ref DBSecurityGroup
+      IpProtocol:                       "tcp"
+      CidrIp:                           "0.0.0.0/0"   # NEVER do this in the real world!
+      FromPort:                         5432
+      ToPort:                           5432
+
+
+  DBSecurityGroupEgress:
+    Type:                               "AWS::EC2::SecurityGroupEgress"
+    Properties: 
+      GroupId:                          !Ref DBSecurityGroup
+      IpProtocol:                       "tcp"
+      CidrIp:                           "0.0.0.0/0"
+      FromPort:                         0
+      ToPort:                           65535
+
+
+  DBSubnetGroup:
+    Type:                               "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription:         !Sub "Managed by CloudFormation: ${AWS::StackName}"
+      SubnetIds:                        !Ref SubnetIds
+
+
+  DBParameterGroup:
+    Type:                               "AWS::RDS::DBParameterGroup"
+    Properties:
+      Description:                      !Sub "Managed by CloudFormation: ${AWS::StackName}"
+      Family:                           "postgres12"
+      Parameters:
+        ssl:                            "1"
+
+
+  DBInstance:
+    Type:                               "AWS::RDS::DBInstance"
+    Properties:
+      Engine:                           "postgres"
+      EngineVersion:                    "12.7"
+      DBInstanceClass:                  "db.t4g.micro"
+      AllocatedStorage:                 20
+      StorageType:                      "gp2"
+      StorageEncrypted:                 true
+      DBParameterGroupName:             !Ref DBParameterGroup
+      MasterUsername:                   !Sub "{{resolve:secretsmanager:${AdminSecret}:SecretString:username}}"
+      MasterUserPassword:               !Sub "{{resolve:secretsmanager:${AdminSecret}:SecretString:password}}"
+      DBName:                           "postgres"
+      EnableIAMDatabaseAuthentication:  false
+      DBSubnetGroupName:                !Ref DBSubnetGroup
+      PubliclyAccessible:               true
+      VPCSecurityGroups:                [ !Ref DBSecurityGroup ]
+      PreferredMaintenanceWindow:       "Sun:06:00-Sun:06:59"
+      AllowMajorVersionUpgrade:         false
+      AutoMinorVersionUpgrade:          true
+      PreferredBackupWindow:            "05:00-05:30"
+      BackupRetentionPeriod:            7
+      CopyTagsToSnapshot:               true
+
+  ##
+  ## create the new user
+  ##
+
+  UserSecret:
+    Type:                               "AWS::SecretsManager::Secret"
+    Properties:
+      Name:                             !Sub "database/${AWS::StackName}-Application"
+      Description:                      !Sub "Application user and password for database ${AWS::StackName}"
+      GenerateSecretString:
+        SecretStringTemplate:           !Sub |
+                                        {
+                                          "username": "example"
+                                        }
+        GenerateStringKey:              "password"
+        ExcludePunctuation:             true  # easier to select for those times that you need to copy/paste
+        PasswordLength:                 64    # double the default length to compensate for limited characters
+
+
+  UserSecretAttachment:
+    Type:                               "AWS::SecretsManager::SecretTargetAttachment"
+    Properties: 
+      SecretId:                         !Ref UserSecret
+      TargetId:                         !Ref DBInstance
+      TargetType:                       "AWS::RDS::DBInstance"
+
+
+  User:
+    Type:                               "Custom::CFPostgres"
     Properties:
       ServiceToken:                     !Ref LambdaArn
-      Action:                           "Testing"
-      SecretArn:                        !Ref SecretArn
-      TestResourceName:                 "test"
-
+      AdminSecretArn:                   !Ref AdminSecret
+      Action:                           "CreateUser"
+      SecretArn:                        !Ref UserSecret

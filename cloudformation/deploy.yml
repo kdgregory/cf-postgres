@@ -4,6 +4,9 @@
 ## After applying this template, you must run "make deploy" to deploy the
 ## custom resource Lambda before using it.
 ##
+## This version deploys the Lambda outside of a VPC. This requires that the
+## database be publicly accessible, which is not appropriate for production.
+##
 
 
 AWSTemplateFormatVersion:               "2010-09-09"
@@ -47,15 +50,15 @@ Resources:
             Statement:
               - Effect:                 "Allow"
                 Action:
-                  -                     "logs:GetSecretValue"
-                Resource:               "*"
+                  -                     "secretsmanager:GetSecretValue"
+                Resource:               !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:database/*"
 
 
   LambdaFunction:
     Type:                               "AWS::Lambda::Function"
     Properties:
       FunctionName:                     !Ref LambdaName
-      Description:                      "CloudFormation custome resource for managing Postgres databases"
+      Description:                      "CloudFormation custom resource for managing Postgres databases"
       Runtime:                          "python3.8"
       Role:                             !GetAtt ExecutionRole.Arn
       Handler:                          "cf_postgres.lambda_handler.handle"
