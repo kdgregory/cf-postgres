@@ -24,29 +24,44 @@ To use, you must first build and deploy the Lambda. This is a two-step process:
 At this point, you can use the resource in your CloudFormation templates:
 
 ```
+  User:
+    Type:                               "Custom::CFPostgres"
+    Properties:
+      Resource:                         "User"
+      ServiceToken:                     !Ref ServiceToken
+      AdminSecretArn:                   !Ref AdminSecret
+      UserSecretArn:                    !Ref UserSecret
 ```
 
-All invocations require an `Action` property, which specifies the action to take.
-See [below](#actions) for all implemented actions.
+All invocations require a `Resource` property, which specifies the type of
+resource to create.  See [below](#actions) for all implemented actions.
 
 You must also specify the `AdminSecretArn` property, which specifies a Secrets Manager
-secret that contains [database connection information](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html#reference_secret_json_structure_rds-postgres) for the database admin.
+secret that contains [database connection information](https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_secret_json_structure.html#reference_secret_json_structure_rds-postgres)
+for the database administrator account.
 
 
-# Actions
+# Resources
 
-## CreateUser
+## User
 
 Creates or deletes a Postgres user; update is a no-op.
 
 ### Configuration properties
 
-| Property    | Description
-|-------------|-------------
-| `Username`  | The name of the user. Required.
-| `Password`  | A password for the user. Optional.
+| Property        | Description
+|-----------------|-------------
+| `Username`      | The name of the user.
+| `Password`      | A password for the user.
+| `UserSecretArn` | A secret that contains both username and password.
+
+You must specify either `Username` or `UserSecretArn` (with the latter preferred).
+
+`Password` is only used if `Username` is specified. If omitted, then you must manually set the password at a later point to enable login.
 
 ### Return values
+
+None.
 
 
 # Roadmap
