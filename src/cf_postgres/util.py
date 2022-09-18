@@ -20,8 +20,11 @@ import boto3
 import json
 import logging
 import os
+import time
 
-from functools import lru_cache
+import pg8000.dbapi
+
+from cf_postgres.constants import *
 
 
 LOGGER = logging.getLogger(__name__)
@@ -38,27 +41,67 @@ def verify_property(request, response, name):
         LOGGER.debug(f"{name}: {value}")
         return value
     else:
-        LOGGER.error(f"missing property \"{name}\"")
-        response['Status'] = "FAILED"
-        response['Reason'] = f"Missing property \"{name}\""
+        report_failure(response, f"Missing property \"{name}\"")
         return None
 
 
-@lru_cache(maxsize=1)
-def retrieve_secret(secret_arn):
+def report_success(response, physical_resource_id, data=None):
+    """ Populates the response for successful operation. Must include a valid
+        resource ID, may include a dict of additional data that can be accessed
+        via Fn::GetAtt.
+        """
+    response[RSP_STATUS]        = RSP_SUCCESS
+    response[RSP_PHYSICAL_ID]   = physical_resource_id
+    if data:
+        response[RSP_DATA]      = data
+
+
+def report_failure(response, reason, physical_resource_id=None):
+    """ Populates the response for failed operation. Must include a reason; may
+        include an actual resource ID, or will substitute with "unknown".
+        """
+    LOGGER.error(f"request failed: {reason}", exc_info=True)
+    response[RSP_STATUS]        = RSP_FAILURE
+    response[RSP_REASON]        = reason
+    response[RSP_PHYSICAL_ID]   = physical_resource_id or "unknown"
+
+
+def retrieve_json_secret(secret_arn):
     """ Retrieves the named secret and parses its contents as JSON.
         """
     LOGGER.debug(f"retrieving secret: {secret_arn}")
-    try:
-        sm_client = boto3.client('secretsmanager')
-        secret_json = sm_client.get_secret_value(SecretId=secret_arn)['SecretString']
-        return json.loads(secret_json)
-    except:
-        LOGGER.error("failed to retrieve secret", exc_info=True)
+    sm_client = boto3.client('secretsmanager')
+    secret_json = sm_client.get_secret_value(SecretId=secret_arn)['SecretString']
+    return json.loads(secret_json)
 
 
-def db_url(secret):
-    """ Constructs a database connection URL from the provided dict (assumes fields
-        as defined by AWS::SecretsManager::SecretTargetAttachment).
+def retrieve_pg8000_secret(secret_arn):
+    """ Retrieves the named secret, which is presumed to contain standard RDS
+        connection information, and extracts the keyword arguments used for a
+        PG8000 connection.
         """
-    return f"postgresql+pg8000://{secret['username']}:{secret['password']}@{secret['host']}:{secret['port']}/{secret['dbname']}"
+    secret = retrieve_json_secret(secret_arn)
+    return {
+        'user':             secret[DB_SECRET_USERNAME],
+        'password':         secret[DB_SECRET_PASSWORD],
+        'host':             secret[DB_SECRET_HOSTNAME],
+        'port':             int(secret[DB_SECRET_PORT]),
+        'database':         secret[DB_SECRET_DATABASE],
+        'application_name': "cf-postgres",
+    }
+
+
+def connect_to_db(connection_info):
+    """ Attempts to connect to the database.
+
+        This method attempts a limited number of retries if unable to connect. This
+        is intended to support integration tests, which run immediately after the
+        local Postgres container is started. In real-world use, we hope to connect
+        successfully on the first try.
+        """
+    for x in range(40):
+        try:
+            return pg8000.dbapi.connect(**connection_info)
+        except:
+            time.sleep(0.25)
+    raise Exception("timed-out waiting for container to start")

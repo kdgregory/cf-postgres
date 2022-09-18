@@ -19,44 +19,67 @@
 import boto3
 import json
 import logging
-import requests
 import sys
 import uuid
 
+import pg8000.dbapi
+import requests
+
 from cf_postgres import util
-import cf_postgres.handlers.testing as testing
+from cf_postgres.constants import *
+from cf_postgres.handlers import test_handler, user_handler
 
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
-HANDLERS = [ testing ]
+HANDLERS = [
+    test_handler, 
+    user_handler, 
+    ]
 
 
 def handle(event, context):
-    print(json.dumps(event), file=sys.stderr)   # useful for debugging
-    response_url = event['ResponseURL']
+    # print(json.dumps(event), file=sys.stderr)   # useful for debugging
+    response_url = event[REQ_RESPONSE_URL]
     response = {
-        'RequestId':            event['RequestId'],
-        'StackId':              event['StackId'],
-        'LogicalResourceId':    event['LogicalResourceId'],
-        'PhysicalResourceId':   "to_be_populated",              # required, even for failure
+        RSP_REQUEST_ID:     event[REQ_REQUEST_ID],
+        RSP_STACK_ID:       event[REQ_STACK_ID],
+        RSP_LOGICAL_ID:     event[REQ_LOGICAL_ID],
+        RSP_PHYSICAL_ID:    "to_be_populated",              # required, even for failure
     }
-    props = event['ResourceProperties']
-    action = util.verify_property(props, response, 'Action')
-    secret_arn = util.verify_property(props, response, 'SecretArn')
-    if action and secret_arn:
-        try_handlers(action, secret_arn, props, response)
+    try:
+        request_type = event[REQ_REQUEST_TYPE]
+        props = event[REQ_PROPERTIES]
+        resource = util.verify_property(props, response, REQ_RESOURCE_TYPE)
+        secret_arn = util.verify_property(props, response, REQ_ADMIN_SECRET)
+        if resource and secret_arn:
+            with open_connection(secret_arn) as conn:
+                try_handlers(resource, request_type, conn, props, response)
+    except Exception as ex:
+        util.report_failure(response, f"Unhandled exception: \"{ex}\"")
+        LOGGER.error("unhandled exception", exc_info=True)
     send_response(response_url, response)
 
 
-def try_handlers(action, secret_arn, props, response):
+def open_connection(secret_arn):
+    """ Establishes the connection to the database. Any exceptions are allowed
+        to propagate.
+        """
+    connection_info = util.retrieve_pg8000_secret(secret_arn)
+    LOGGER.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
+                f"database {connection_info.get('database')} as user {connection_info.get('user')}")
+    return pg8000.dbapi.connect(**connection_info)
+
+
+def try_handlers(resource, request_type, conn, props, response):
+    """ Runs through the list of handlers, returning once one handles the resource.
+        Fails the invocation if there aren't any handlers.
+        """
     for handler in HANDLERS:
-        if handler.try_handle(action, secret_arn, props, response):
+        if handler.try_handle(resource, request_type, conn, props, response):
             return
-    LOGGER.error(f"unhandled action: {action}")
-    response['Status'] = "FAILED"
-    response['Reason'] = f"Unknown action: \"{action}\""
+    util.report_failure(response, f"Unknown resource: \"{resource}\"")
 
 
 def send_response(response_url, response):
