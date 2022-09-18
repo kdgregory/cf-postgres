@@ -24,6 +24,8 @@ import time
 
 import pg8000.dbapi
 
+from cf_postgres.constants import *
+
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
@@ -48,10 +50,10 @@ def report_success(response, physical_resource_id, data=None):
         resource ID, may include a dict of additional data that can be accessed
         via Fn::GetAtt.
         """
-    response['Status']             = "SUCCESS"
-    response['PhysicalResourceId'] = physical_resource_id
+    response[RSP_STATUS]        = RSP_SUCCESS
+    response[RSP_PHYSICAL_ID]   = physical_resource_id
     if data:
-        response['Data']           = data
+        response[RSP_DATA]      = data
 
 
 def report_failure(response, reason, physical_resource_id=None):
@@ -59,9 +61,9 @@ def report_failure(response, reason, physical_resource_id=None):
         include an actual resource ID, or will substitute with "unknown".
         """
     LOGGER.error(f"request failed: {reason}", exc_info=True)
-    response['Status']              = "FAILED"
-    response['Reason']              = reason
-    response['PhysicalResourceId']  = physical_resource_id or "unknown"
+    response[RSP_STATUS]        = RSP_FAILURE
+    response[RSP_REASON]        = reason
+    response[RSP_PHYSICAL_ID]   = physical_resource_id or "unknown"
 
 
 def retrieve_json_secret(secret_arn):
@@ -80,11 +82,11 @@ def retrieve_pg8000_secret(secret_arn):
         """
     secret = retrieve_json_secret(secret_arn)
     return {
-        'user':             secret['username'],
-        'password':         secret['password'],
-        'host':             secret['host'],
-        'database':         secret['dbname'],
-        'port':             int(secret['port']),
+        'user':             secret[DB_SECRET_USERNAME],
+        'password':         secret[DB_SECRET_PASSWORD],
+        'host':             secret[DB_SECRET_HOSTNAME],
+        'port':             int(secret[DB_SECRET_PORT]),
+        'database':         secret[DB_SECRET_DATABASE],
         'application_name': "cf-postgres",
     }
 

@@ -26,6 +26,7 @@ import pg8000.dbapi
 import requests
 
 from cf_postgres import util
+from cf_postgres.constants import *
 from cf_postgres.handlers import test_handler, user_handler
 
 
@@ -40,18 +41,18 @@ HANDLERS = [
 
 def handle(event, context):
     # print(json.dumps(event), file=sys.stderr)   # useful for debugging
-    response_url = event['ResponseURL']
+    response_url = event[REQ_RESPONSE_URL]
     response = {
-        'RequestId':            event['RequestId'],
-        'StackId':              event['StackId'],
-        'LogicalResourceId':    event['LogicalResourceId'],
-        'PhysicalResourceId':   "to_be_populated",              # required, even for failure
+        RSP_REQUEST_ID:     event[REQ_REQUEST_ID],
+        RSP_STACK_ID:       event[REQ_STACK_ID],
+        RSP_LOGICAL_ID:     event[REQ_LOGICAL_ID],
+        RSP_PHYSICAL_ID:    "to_be_populated",              # required, even for failure
     }
     try:
-        request_type = event['RequestType']
-        props = event['ResourceProperties']
-        resource = util.verify_property(props, response, 'Resource')
-        secret_arn = util.verify_property(props, response, 'AdminSecretArn')
+        request_type = event[REQ_REQUEST_TYPE]
+        props = event[REQ_PROPERTIES]
+        resource = util.verify_property(props, response, REQ_RESOURCE_TYPE)
+        secret_arn = util.verify_property(props, response, REQ_ADMIN_SECRET)
         if resource and secret_arn:
             with open_connection(secret_arn) as conn:
                 try_handlers(resource, request_type, conn, props, response)

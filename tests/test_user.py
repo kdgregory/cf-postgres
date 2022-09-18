@@ -88,7 +88,7 @@ class TestUserHandler(unittest.TestCase):
                           {
                             "Status": "FAILED",
                             "Reason": "Can not update a user once created",
-                            "PhysicalResourceId": "unknown",
+                            "PhysicalResourceId": USERNAME,
                           })
 
     def test_delete_from_username(self):

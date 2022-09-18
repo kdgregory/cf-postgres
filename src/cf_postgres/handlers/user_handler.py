@@ -5,6 +5,7 @@ import logging
 import sys
 
 from cf_postgres import util
+from cf_postgres.constants import *
 
 
 LOGGER = logging.getLogger(__name__)
@@ -37,8 +38,8 @@ def load_user_info(props, response):
     secret_arn = props.get(PROP_SECRET)
     if secret_arn:
         secret = util.retrieve_json_secret(secret_arn)
-        username = secret.get('username')
-        password = secret.get('password')
+        username = secret.get(DB_SECRET_USERNAME)
+        password = secret.get(DB_SECRET_PASSWORD)
     else:
         username = props.get(PROP_USERNAME)
         password = props.get(PROP_PASSWORD)
@@ -52,11 +53,11 @@ def load_user_info(props, response):
 def handle(request_type, conn, username, password, response):
     LOGGER.info(f"performing {request_type} for user {username}")
     try:
-        if request_type == "Create":
+        if request_type == ACTION_CREATE:
             doCreate(conn, username, password, response)
-        elif request_type == "Update":
+        elif request_type == ACTION_UPDATE:
             doUpdate(conn, username, response)
-        elif request_type == "Delete":
+        elif request_type == ACTION_DELETE:
             doDelete(conn, username, response)
         else:
             util.report_failure(response, f"Unknown request type: {request_type}")
@@ -77,7 +78,7 @@ def doCreate(conn, username, password, response):
 
 def doUpdate(conn, username, response):
     util.report_failure(response, "Can not update a user once created")
-    response['PhysicalResourceId'] = "unknown"
+    response['PhysicalResourceId'] = username
 
 
 def doDelete(conn, username, response):
