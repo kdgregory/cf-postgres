@@ -1,4 +1,4 @@
-""" The CreateUser handler.
+""" Handler for User resources.
     """
 
 import logging
@@ -10,14 +10,17 @@ from cf_postgres import util
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
-# the allowed properties
+# resource configuration
+
+RESOURCE_NAME = "User"
+
 PROP_USERNAME = "Username"
 PROP_PASSWORD = "Password"
-PROP_SECRET   = "SecretArn"
+PROP_SECRET   = "UserSecretArn"
 
 
-def try_handle(action, request_type, conn, props, response):
-    if action != "CreateUser":
+def try_handle(resource, request_type, conn, props, response):
+    if resource != RESOURCE_NAME:
         return False
     (username, password) = load_user_info(props, response)
     if username:
@@ -47,6 +50,7 @@ def load_user_info(props, response):
 
 
 def handle(request_type, conn, username, password, response):
+    LOGGER.info(f"performing {request_type} for user {username}")
     try:
         if request_type == "Create":
             doCreate(conn, username, password, response)
@@ -57,8 +61,7 @@ def handle(request_type, conn, username, password, response):
         else:
             util.report_failure(response, f"Unknown request type: {request_type}")
     except:
-            LOGGER.error(f"failed to complete action {request_type} for user {username}", exc_info=True)
-            util.report_failure(response, str(sys.exc_info()[1]))
+            util.report_failure(response, f"failed to complete action {request_type} for user {username}: {sys.exc_info()[1]}")
             conn.rollback()
 
 

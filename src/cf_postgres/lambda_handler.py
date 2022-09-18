@@ -50,14 +50,14 @@ def handle(event, context):
     try:
         request_type = event['RequestType']
         props = event['ResourceProperties']
-        action = util.verify_property(props, response, 'Action')
+        resource = util.verify_property(props, response, 'Resource')
         secret_arn = util.verify_property(props, response, 'AdminSecretArn')
-        if action and secret_arn:
+        if resource and secret_arn:
             with open_connection(secret_arn) as conn:
-                try_handlers(action, request_type, conn, props, response)
+                try_handlers(resource, request_type, conn, props, response)
     except Exception as ex:
-        LOGGER.error("unhandled exception", exc_info=True)
         util.report_failure(response, f"Unhandled exception: \"{ex}\"")
+        LOGGER.error("unhandled exception", exc_info=True)
     send_response(response_url, response)
 
 
@@ -71,14 +71,14 @@ def open_connection(secret_arn):
     return pg8000.dbapi.connect(**connection_info)
 
 
-def try_handlers(action, request_type, conn, props, response):
-    """ Runs through the list of handlers, returning once one handles the action.
+def try_handlers(resource, request_type, conn, props, response):
+    """ Runs through the list of handlers, returning once one handles the resource.
+        Fails the invocation if there aren't any handlers.
         """
     for handler in HANDLERS:
-        if handler.try_handle(action, request_type, conn, props, response):
+        if handler.try_handle(resource, request_type, conn, props, response):
             return
-    LOGGER.error(f"unhandled action: {action}")
-    util.report_failure(response, f"Unknown action: \"{action}\"")
+    util.report_failure(response, f"Unknown resource: \"{resource}\"")
 
 
 def send_response(response_url, response):

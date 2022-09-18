@@ -15,10 +15,9 @@ To use, you must first build and deploy the Lambda. This is a two-step process:
    By default, the Lambda is named `cf_postgres`. This CloudFormation script lets
    you provide another name, but you must use that name in the next step.
 
-   **Note:** the template grants the Lambda the ability to retrieve all secrets.
-   For security, you should implement a tagging strategy, and use a condition that
-   restricts those secrets to the specified tag. The template provides one such
-   implementation, commented-out.
+   **Note:** the template grants the Lambda the ability to retrieve all secrets
+   that begin with "database/". Alternatively, implement a tagging strategy and
+   use a condition on the policy.
 
 2. Build and deploy the Lambda, using the provided [Makefile](Makefile).
 

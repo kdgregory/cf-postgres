@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch, ANY
 import pg8000.dbapi
 
 from cf_postgres import util
-from cf_postgres.handlers import user as user_handler
+from cf_postgres.handlers import user_handler
 from cf_postgres.itest_helpers import local_pg8000_secret
 
 
@@ -47,7 +47,7 @@ class TestUserHandler(unittest.TestCase):
                     "Password":     self.password,
                 }
         with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("CreateUser", "Create", conn, props, self.response)
+            result = user_handler.try_handle("User", "Create", conn, props, self.response)
         self.assertTrue(result)
         self.assertEqual(self.response,
                           {
@@ -63,7 +63,7 @@ class TestUserHandler(unittest.TestCase):
                     "Username":     self.username,
                 }
         with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("CreateUser", "Create", conn, props, self.response)
+            result = user_handler.try_handle("User", "Create", conn, props, self.response)
         self.assertTrue(result)
         self.assertEqual(self.response,
                           {
@@ -83,7 +83,7 @@ class TestUserHandler(unittest.TestCase):
             conn.commit()
         self.assertEqual(len(self.retrieve_user_info()), 1) # test the test
         with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("CreateUser", "Delete", conn, props, self.response)
+            result = user_handler.try_handle("User", "Delete", conn, props, self.response)
         self.assertEqual(self.response,
                           {
                             "Status": "SUCCESS",

@@ -39,7 +39,6 @@ def verify_property(request, response, name):
         LOGGER.debug(f"{name}: {value}")
         return value
     else:
-        LOGGER.error(f"missing property \"{name}\"")
         report_failure(response, f"Missing property \"{name}\"")
         return None
 
@@ -59,6 +58,7 @@ def report_failure(response, reason, physical_resource_id=None):
     """ Populates the response for failed operation. Must include a reason; may
         include an actual resource ID, or will substitute with "unknown".
         """
+    LOGGER.error(f"request failed: {reason}", exc_info=True)
     response['Status']              = "FAILED"
     response['Reason']              = reason
     response['PhysicalResourceId']  = physical_resource_id or "unknown"

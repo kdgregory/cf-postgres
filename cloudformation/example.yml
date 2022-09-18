@@ -19,7 +19,7 @@ Parameters:
     Description:                        "Public subnets in that VPC"
     Type:                               "List<AWS::EC2::Subnet::Id>"
 
-  LambdaArn:
+  ServiceToken:
     Description:                        "ARN of the Lambda that implements the custom resource"
     Type:                               "String"
 
@@ -151,7 +151,7 @@ Resources:
   User:
     Type:                               "Custom::CFPostgres"
     Properties:
-      ServiceToken:                     !Ref LambdaArn
+      Resource:                         "User"
+      ServiceToken:                     !Ref ServiceToken
       AdminSecretArn:                   !Ref AdminSecret
-      Action:                           "CreateUser"
-      SecretArn:                        !Ref UserSecret
+      UserSecretArn:                    !Ref UserSecret

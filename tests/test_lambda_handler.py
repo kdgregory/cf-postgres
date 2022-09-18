@@ -25,10 +25,10 @@ DEFAULT_EVENT           = {
                             "StackId": EXPECTED_STACK_ID,
                             "RequestId": EXPECTED_REQUEST_ID,
                             "LogicalResourceId": EXPECTED_LOGICAL_ID,
-                            "ResourceType": "Custom::CFPostgres-Database",
+                            "ResourceType": "Custom::CFPostgres",
                             "ResourceProperties": {
                                 "ServiceToken": EXPECTED_SERVICE_TOKEN,
-                                "Action": "Testing",
+                                "Resource": "Testing",
                                 "AdminSecretArn": EXPECTED_SECRET_ARN,
                                 "TestResourceName": EXPECTED_PHYSICAL_ID
                             }
@@ -69,9 +69,9 @@ class TestLambdaHandler(unittest.TestCase):
             })
 
 
-    def test_unknown_action(self):
+    def test_unknown_resource(self):
         event = copy.deepcopy(DEFAULT_EVENT)
-        event["ResourceProperties"]["Action"] = "Bogus"
+        event["ResourceProperties"]["Resource"] = "Bogus"
         self.invoke_lambda(event)
         self.open_connection_mock.assert_called_once_with(EXPECTED_SECRET_ARN)
         self.send_response_mock.assert_called_once_with(EXPECTED_RESPONSE_URL, {
@@ -83,13 +83,13 @@ class TestLambdaHandler(unittest.TestCase):
             "PhysicalResourceId": ANY,
         })
         actual_reason = self.send_response_mock.mock_calls[0][1][1]["Reason"]
-        self.assertTrue("Unknown action" in actual_reason, f"(actual reason: {actual_reason})")
+        self.assertTrue("Unknown resource" in actual_reason, f"(actual reason: {actual_reason})")
         self.assertTrue("Bogus" in actual_reason, f"(actual reason: {actual_reason})")
 
 
-    def test_missing_action(self):
+    def test_missing_resource(self):
         event = copy.deepcopy(DEFAULT_EVENT)
-        del event["ResourceProperties"]["Action"]
+        del event["ResourceProperties"]["Resource"]
         self.invoke_lambda(event)
         self.open_connection_mock.assert_not_called()
         self.send_response_mock.assert_called_once_with(EXPECTED_RESPONSE_URL, {
@@ -101,7 +101,7 @@ class TestLambdaHandler(unittest.TestCase):
             "PhysicalResourceId": ANY,
         })
         actual_reason = self.send_response_mock.mock_calls[0][1][1]["Reason"]
-        self.assertTrue("Action" in actual_reason, f"(actual reason: {actual_reason})")
+        self.assertTrue("Resource" in actual_reason, f"(actual reason: {actual_reason})")
 
 
     def test_missing_secret_arn(self):
