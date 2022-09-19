@@ -22,7 +22,7 @@ package: test
 
 itest:	test
 	CONTAINER_ID=$$(docker run -d --rm -e POSTGRES_PASSWORD=$(PG_PASSWORD) -p $(PG_PORT):5432 postgres:12) && \
-	PYTHONPATH=$(LIB_DIR):$(DEV_LIB_DIR):$(SRC_DIR) PGPORT=$(PG_PORT) PGPASSWORD=$(PG_PASSWORD) python -m unittest itests/test*.py ; \
+	PYTHONPATH=$(LIB_DIR):$(DEV_LIB_DIR):$(SRC_DIR) PGPORT=$(PG_PORT) PGPASSWORD=$(PG_PASSWORD) python -m pytest itests/test*.py ; \
 	docker kill $${CONTAINER_ID}
 
 test:	$(LIB_DIR) quicktest
