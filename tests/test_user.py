@@ -4,14 +4,17 @@
 
 import copy
 import json
-import unittest
+import pytest
 from unittest.mock import Mock, patch, ANY
 
 from cf_postgres import util
 from cf_postgres.handlers import user_handler
 
 
+################################################################################
 # event properties that will be asserted
+################################################################################
+
 
 RESOURCE            = "User"
 USERNAME            = "tester"
@@ -19,119 +22,113 @@ PASSWORD            = "tester-123"
 ADMIN_SECRET_ARN    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:database-1-admin-5z4FyE"
 SECRET_ARN          = "arn:aws:secretsmanager:us-east-1:123456789012:secret:database-1-user-9qqMq4"
 
-# mock secret contents
 
-SECRET_VALUE        = {
-                        'username': USERNAME,
-                        'password': PASSWORD,
-                      }
+################################################################################
+## fixtures
+################################################################################
 
 
-class TestUserHandler(unittest.TestCase):
-
-    def test_create_from_username(self):
-        mock_connection = Mock()
-        props = {
-                    "Username":     USERNAME,
-                    "Password":     PASSWORD
-                }
-        response = {}
-        result = user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": USERNAME,
-                          })
+@pytest.fixture
+def mock_connection():
+    return Mock()
 
 
-    def test_create_from_secret(self):
-        mock_connection = Mock()
-        props = {
-                    "SecretArn":    SECRET_ARN,
-                }
-        response = {}
-        with patch.object(util, 'retrieve_json_secret', Mock(return_value=SECRET_VALUE)):
-            result = user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": USERNAME,
-                          })
+@pytest.fixture
+def response_holder():
+    return {}
 
 
-    def test_create_missing_props(self):
-        mock_connection = Mock()
-        props = {
-                }
-        response = {}
-        result = user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "FAILED",
-                            "Reason": "Must specify username or secret",
-                            "PhysicalResourceId": "unknown",
-                          })
+@pytest.fixture
+def with_secret(monkeypatch):
+    secret_value= {
+                  'username': USERNAME,
+                  'password': PASSWORD,
+                  }
+    monkeypatch.setattr(util, 'retrieve_json_secret', Mock(return_value=secret_value))
 
 
-    def test_update(self):
-        mock_connection = Mock()
-        props = {
-                    "Username":     USERNAME,
-                }
-        response = {}
-        result = user_handler.try_handle(RESOURCE, "Update", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "FAILED",
-                            "Reason": "Can not update a user once created",
-                            "PhysicalResourceId": USERNAME,
-                          })
-
-    def test_delete_from_username(self):
-        mock_connection = Mock()
-        props = {
-                    "Username":     USERNAME,
-                }
-        response = {}
-        result = user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": USERNAME,
-                          })
+@pytest.fixture
+def no_secret(monkeypatch):
+    # for tests that shouldn't retrieve a secret, this will throw
+    monkeypatch.setattr(util, 'retrieve_json_secret', Mock(side_effect = Exception("should not be called")))
 
 
-    def test_create_from_secret(self):
-        mock_connection = Mock()
-        props = {
-                    "UserSecretArn":    SECRET_ARN,
-                }
-        response = {}
-        with patch.object(util, 'retrieve_json_secret', Mock(return_value=SECRET_VALUE)):
-            result = user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": USERNAME,
-                          })
+################################################################################
+## testcases
+################################################################################
 
 
-    def test_delete_missing_props(self):
-        mock_connection = Mock()
-        props = {
-                }
-        response = {}
-        result = user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response)
-        self.assertTrue(result)
-        self.assertEqual(response,
-                          {
-                            "Status": "FAILED",
-                            "Reason": "Must specify username or secret",
-                            "PhysicalResourceId": "unknown",
-                          })
+def test_create_from_username(no_secret, mock_connection, response_holder):
+    props = {
+                "Username":     USERNAME,
+                "Password":     PASSWORD
+            }
+    assert user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "SUCCESS",
+                              "PhysicalResourceId": USERNAME,
+                              }
+
+
+def test_create_from_secret(with_secret, mock_connection, response_holder):
+    props = {
+                "SecretArn":    SECRET_ARN,
+            }
+    assert user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "SUCCESS",
+                              "PhysicalResourceId": USERNAME,
+                              }
+
+
+def test_create_missing_props(no_secret, mock_connection, response_holder):
+    props = { }
+    assert user_handler.try_handle(RESOURCE, "Create", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "FAILED",
+                              "Reason": "Must specify username or secret",
+                              "PhysicalResourceId": "unknown",
+                              }
+
+
+def test_update(no_secret, mock_connection, response_holder):
+    props = {
+                "Username":     USERNAME,
+            }
+    assert user_handler.try_handle(RESOURCE, "Update", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "FAILED",
+                              "Reason": "Can not update a user once created",
+                              "PhysicalResourceId": USERNAME,
+                              }
+
+def test_delete_from_username(no_secret, mock_connection, response_holder):
+    props = {
+                "Username":     USERNAME,
+            }
+    assert user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "SUCCESS",
+                              "PhysicalResourceId": USERNAME,
+                              }
+
+
+def test_create_from_secret(with_secret, mock_connection, response_holder):
+    props = {
+                "UserSecretArn":    SECRET_ARN,
+            }
+    assert user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "SUCCESS",
+                              "PhysicalResourceId": USERNAME,
+                              }
+
+
+def test_delete_missing_props(no_secret, mock_connection, response_holder):
+    props = {}
+    assert user_handler.try_handle(RESOURCE, "Delete", mock_connection, props, response_holder)
+    assert response_holder == {
+                              "Status": "FAILED",
+                              "Reason": "Must specify username or secret",
+                              "PhysicalResourceId": "unknown",
+                              }

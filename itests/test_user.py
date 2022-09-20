@@ -4,8 +4,8 @@
 
 import copy
 import json
+import pytest
 import random
-import unittest
 from unittest.mock import Mock, patch, ANY
 
 import pg8000.dbapi
@@ -14,79 +14,100 @@ from cf_postgres import util
 from cf_postgres.handlers import user_handler
 from cf_postgres.itest_helpers import local_pg8000_secret
 
+################################################################################
+## fixtures
+################################################################################
 
-class TestUserHandler(unittest.TestCase):
-
-    def setUp(self):
-        randval = random.randrange(100000, 999999)
-        self.username = f"user_{randval}"
-        self.password = f"pass_{randval}"
-        self.response = {}
-
-
-    def retrieve_user_info(self):
-        # running from a separate connection ensures that we commit our transactions
-        with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            csr = conn.cursor()
-            csr.execute("select * from pg_user where usename = %s", (self.username,))
-            return csr.fetchall() 
+@pytest.fixture
+def randval():
+    return random.randrange(100000, 999999)
 
 
-    def assert_user_can_login(self):
-        # verify that we properly supplied the password
-        connection_info = copy.deepcopy(local_pg8000_secret(None))
-        connection_info['user'] = self.username
-        connection_info['password'] = self.password
-        with pg8000.dbapi.connect(**connection_info) as conn:
-            pass # success! (failure will throw)
+@pytest.fixture
+def username(randval):
+    username = f"user_{randval}"
 
 
-    def test_create_from_username_and_password(self):
-        props = {
-                    "Username":     self.username,
-                    "Password":     self.password,
-                }
-        with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("User", "Create", conn, props, self.response)
-        self.assertTrue(result)
-        self.assertEqual(self.response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": self.username,
-                          })
-        self.assertEqual(len(self.retrieve_user_info()), 1)
-        self.assert_user_can_login()
+@pytest.fixture
+def username(randval):
+    return f"user_{randval}"
 
 
-    def test_create_from_username(self):
-        props = {
-                    "Username":     self.username,
-                }
-        with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("User", "Create", conn, props, self.response)
-        self.assertTrue(result)
-        self.assertEqual(self.response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": self.username,
-                          })
-        self.assertEqual(len(self.retrieve_user_info()), 1)
+@pytest.fixture
+def password(randval):
+    return f"pass_{randval}"
 
 
-    def test_delete(self):
-        props = {
-                    "Username":     self.username,
-                }
-        with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            csr = conn.cursor()
-            csr.execute(f"create user {self.username} password NULL")
-            conn.commit()
-        self.assertEqual(len(self.retrieve_user_info()), 1) # test the test
-        with util.connect_to_db(local_pg8000_secret(None)) as conn:
-            result = user_handler.try_handle("User", "Delete", conn, props, self.response)
-        self.assertEqual(self.response,
-                          {
-                            "Status": "SUCCESS",
-                            "PhysicalResourceId": self.username,
-                          })
-        self.assertEqual(len(self.retrieve_user_info()), 0)
+@pytest.fixture
+def response(randval):
+    return {}
+
+################################################################################
+## helper functions
+################################################################################
+
+def retrieve_user_info(username):
+    # running from a separate connection ensures that we commit our transactions
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        csr = conn.cursor()
+        csr.execute("select * from pg_user where usename = %s", (username,))
+        return csr.fetchall()
+
+
+def assert_user_can_login(username, password):
+    # verify that we properly supplied the password
+    connection_info = copy.deepcopy(local_pg8000_secret(None))
+    connection_info['user'] = username
+    connection_info['password'] = password
+    with pg8000.dbapi.connect(**connection_info) as conn:
+        pass # success! (failure will throw)
+
+################################################################################
+## testcases
+################################################################################
+
+def test_create_from_username_and_password(username, password, response):
+    props = {
+                "Username":     username,
+                "Password":     password,
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Create", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert len(retrieve_user_info(username)) == 1
+    assert_user_can_login(username, password)
+
+
+def test_create_from_username(username, response):
+    props = {
+                "Username":     username,
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Create", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert len(retrieve_user_info(username)) == 1
+    # can't assert login because there's no password
+
+
+def test_delete(username, response):
+    props = {
+                "Username":     username,
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        csr = conn.cursor()
+        csr.execute(f"create user {username} password NULL")
+        conn.commit()
+    assert len(retrieve_user_info(username)) == 1   # verify that we created before trying to delete
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Delete", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert len(retrieve_user_info(username)) == 0
