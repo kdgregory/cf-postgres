@@ -49,11 +49,13 @@ Creates or deletes a Postgres user; update is a no-op.
 
 ### Configuration properties
 
-| Property        | Description
-|-----------------|-------------
-| `Username`      | The name of the user.
-| `Password`      | A password for the user.
-| `UserSecretArn` | A secret that contains both username and password.
+| Property          | Type    | Description
+|-------------------|---------|-------------
+| `Username`        | String  | The name of the user. See below.
+| `Password`        | String  | A password for the user. Optional, see below.
+| `UserSecretArn`   | String  | A secret that contains both username and password.
+| `CreateRole`      | Boolean | If true, the user will be granted the permission to create new roles.
+| `CreateDatabase`  | Boolean | If true, the user will be granted the permission to create new databases.
 
 You must specify either `Username` or `UserSecretArn` (with the latter preferred).
 
