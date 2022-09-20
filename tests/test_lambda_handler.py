@@ -137,3 +137,20 @@ def test_missing_secret_arn(patched_lambda, event, open_connection_mock, send_re
         "PhysicalResourceId": ANY,
     })
     assert "SecretArn" in send_response_mock.mock_calls[0][1][1]["Reason"]
+
+
+# the following tests verify that the resource handlers are properly configured
+# they should all fail, but at least they'll try to handle the resource
+
+def test_user_resource(patched_lambda, event, open_connection_mock, send_response_mock):
+    event["ResourceProperties"]["Resource"] = "User"
+    lambda_handler.handle(event, None)
+    send_response_mock.assert_called_once_with(EXPECTED_RESPONSE_URL, {
+        "Status": "FAILED",
+        "Reason": ANY,
+        "StackId": EXPECTED_STACK_ID,
+        "RequestId": EXPECTED_REQUEST_ID,
+        "LogicalResourceId": EXPECTED_LOGICAL_ID,
+        "PhysicalResourceId": ANY,
+    })
+    assert "Unknown resource" not in send_response_mock.mock_calls[0][1][1]["Reason"]
