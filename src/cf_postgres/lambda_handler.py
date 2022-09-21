@@ -19,6 +19,7 @@
 import boto3
 import json
 import logging
+import os
 import sys
 import uuid
 
@@ -30,8 +31,9 @@ from cf_postgres.constants import *
 from cf_postgres.handlers import test_handler, user_handler
 
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
+log_level = os.environ.get("LOG_LEVEL", logging.INFO)
+logging.getLogger().setLevel(log_level)
+
 
 HANDLERS = [
     test_handler, 
@@ -58,7 +60,7 @@ def handle(event, context):
                 try_handlers(resource, request_type, conn, props, response)
     except Exception as ex:
         util.report_failure(response, f"Unhandled exception: \"{ex}\"")
-        LOGGER.error("unhandled exception", exc_info=True)
+        logging.error("unhandled exception", exc_info=True)
     send_response(response_url, response)
 
 
@@ -67,7 +69,7 @@ def open_connection(secret_arn):
         to propagate.
         """
     connection_info = util.retrieve_pg8000_secret(secret_arn)
-    LOGGER.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
+    logging.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
                 f"database {connection_info.get('database')} as user {connection_info.get('user')}")
     return pg8000.dbapi.connect(**connection_info)
 
@@ -83,6 +85,6 @@ def try_handlers(resource, request_type, conn, props, response):
 
 
 def send_response(response_url, response):
-    LOGGER.info(f"sending response to {response_url}: {response}")
+    logging.info(f"sending response to {response_url}: {response}")
     rsp = requests.put(response_url, data=json.dumps(response))
-    LOGGER.info(f"response status code: {rsp.status_code}")
+    logging.info(f"response status code: {rsp.status_code}")

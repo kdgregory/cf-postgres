@@ -8,9 +8,6 @@ from cf_postgres import util
 from cf_postgres.constants import *
 
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
-
 # resource configuration
 
 RESOURCE_NAME = "User"
@@ -51,7 +48,7 @@ def load_user_info(props, response):
 
 
 def handle(request_type, conn, username, password, response):
-    LOGGER.info(f"performing {request_type} for user {username}")
+    logging.info(f"performing {request_type} for user {username}")
     try:
         if request_type == ACTION_CREATE:
             doCreate(conn, username, password, response)
