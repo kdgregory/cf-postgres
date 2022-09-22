@@ -1,5 +1,5 @@
-""" Unit tests for the CreateUser action. These tests verify the behavior of the handler,
-    but do not attempt to verify that it executed the correct SQL.
+""" Unit tests for the User sub-resource. These tests verify the behavior of
+    the handler, but do not attempt to verify that it executed the correct SQL.
     """
 
 import copy

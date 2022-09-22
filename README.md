@@ -54,8 +54,8 @@ Creates or deletes a Postgres user; update is a no-op.
 | `Username`        | String  | The name of the user. See below.
 | `Password`        | String  | A password for the user. Optional, see below.
 | `UserSecretArn`   | String  | A secret that contains both username and password.
-| `CreateRole`      | Boolean | If true, the user will be granted the permission to create new roles.
 | `CreateDatabase`  | Boolean | If true, the user will be granted the permission to create new databases.
+| `CreateRole`      | Boolean | If true, the user will be granted the permission to create new roles.
 
 You must specify either `Username` or `UserSecretArn` (with the latter preferred).
 

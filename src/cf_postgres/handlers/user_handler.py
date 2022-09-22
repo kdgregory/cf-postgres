@@ -12,17 +12,19 @@ from cf_postgres.constants import *
 
 RESOURCE_NAME = "User"
 
-PROP_USERNAME = "Username"
-PROP_PASSWORD = "Password"
-PROP_SECRET   = "UserSecretArn"
+PROP_USERNAME   = "Username"
+PROP_PASSWORD   = "Password"
+PROP_SECRET     = "UserSecretArn"
+PROP_CREATEDB   = "CreateDatabase"
+PROP_CREATEROLE = "CreateRole"
 
 
 def try_handle(resource, request_type, conn, props, response):
     if resource != RESOURCE_NAME:
         return False
-    (username, password) = load_user_info(props, response)
+    (username, password, with_createdb, with_createrole) = load_user_info(props, response)
     if username:
-        handle(request_type, conn, username, password, response)
+        handle(request_type, conn, username, password, with_createdb, with_createrole, response)
     return True
 
 
@@ -40,18 +42,20 @@ def load_user_info(props, response):
     else:
         username = props.get(PROP_USERNAME)
         password = props.get(PROP_PASSWORD)
+    with_createdb = props.get(PROP_CREATEDB, "false").lower() == "true"
+    with_createrole = props.get(PROP_CREATEROLE, "false").lower() == "true"
     if username:
-        return (username, password)
+        return (username, password, with_createdb, with_createrole)
     else:
         util.report_failure(response, "Must specify username or secret")
-        return (None, None)
+        return (None, None, None, None)
 
 
-def handle(request_type, conn, username, password, response):
+def handle(request_type, conn, username, password, with_createdb, with_createrole, response):
     logging.info(f"performing {request_type} for user {username}")
     try:
         if request_type == ACTION_CREATE:
-            doCreate(conn, username, password, response)
+            doCreate(conn, username, password, with_createdb, with_createrole, response)
         elif request_type == ACTION_UPDATE:
             doUpdate(conn, username, response)
         elif request_type == ACTION_DELETE:
@@ -63,12 +67,14 @@ def handle(request_type, conn, username, password, response):
             conn.rollback()
 
 
-def doCreate(conn, username, password, response):
+def doCreate(conn, username, password, with_createdb, with_createrole, response):
     csr = conn.cursor()
+    createrole = "CREATEDB" if with_createrole else "NOCREATEDB"
+    createdb   = "CREATEROLE" if with_createdb else "NOCREATEROLE"
     if password:
-        csr.execute(f"create user {username} password '{password}'")
+        csr.execute(f"create user {username} password '{password}' {createrole} {createdb}")
     else:
-        csr.execute(f"create user {username} password NULL")
+        csr.execute(f"create user {username} password NULL {createrole} {createdb}")
     conn.commit()
     util.report_success(response, username)
 

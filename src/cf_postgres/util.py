@@ -101,3 +101,21 @@ def connect_to_db(connection_info):
         except:
             time.sleep(0.25)
     raise Exception("timed-out waiting for container to start")
+
+
+def select_as_dict(connection_info, fn):
+    """ Executes a query and transforms the results to a name-value dict.
+        The query is passed as a function of the cursor object:
+        
+        results = select_as_dict(ci, lambda c: c.execute("..."))
+
+        Note that this opens its own connection to the database. The primary
+        use-case is integration testing, where we want to verify that the
+        mainline code commits/rolls-back its transactions.
+        """
+    with connect_to_db(connection_info) as conn:
+        csr = conn.cursor()
+        fn(csr)
+        rows = csr.fetchall()
+        keys = [k[0] for k in csr.description]
+        return [dict(zip(keys, row)) for row in rows]

@@ -47,11 +47,9 @@ def response(randval):
 ################################################################################
 
 def retrieve_user_info(username):
-    # running from a separate connection ensures that we commit our transactions
-    with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        csr = conn.cursor()
-        csr.execute("select * from pg_user where usename = %s", (username,))
-        return csr.fetchall()
+    return util.select_as_dict(
+                local_pg8000_secret(None),
+                lambda c:  c.execute("select * from pg_user where usename = %s", (username,)))
 
 
 def assert_user_can_login(username, password):
@@ -66,7 +64,7 @@ def assert_user_can_login(username, password):
 ## testcases
 ################################################################################
 
-def test_create_from_username_and_password(username, password, response):
+def test_create_from_username_and_password_no_extra_abilities(username, password, response):
     props = {
                 "Username":     username,
                 "Password":     password,
