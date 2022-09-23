@@ -49,7 +49,13 @@ def response(randval):
 def retrieve_user_info(username):
     return util.select_as_dict(
                 local_pg8000_secret(None),
-                lambda c:  c.execute("select * from pg_user where usename = %s", (username,)))
+                lambda c:  c.execute("select * from pg_roles where rolname = %s", (username,)))
+
+def assert_user_info(username, has_createdb, has_createrole):
+    selection = retrieve_user_info(username)
+    assert len(selection) == 1
+    assert selection[0]['rolcreatedb'] == has_createdb
+    assert selection[0]['rolcreaterole'] == has_createrole
 
 
 def assert_user_can_login(username, password):
@@ -75,11 +81,60 @@ def test_create_from_username_and_password_no_extra_abilities(username, password
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
                        }
-    assert len(retrieve_user_info(username)) == 1
+    assert_user_info(username, False, False)
     assert_user_can_login(username, password)
 
 
-def test_create_from_username(username, response):
+def test_create_from_username_and_password_with_createdb(username, password, response):
+    props = {
+                "Username":         username,
+                "Password":         password,
+                "CreateDatabase":   "true",
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Create", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert_user_info(username, True, False)
+    assert_user_can_login(username, password)
+
+
+def test_create_from_username_and_password_with_createrole(username, password, response):
+    props = {
+                "Username":         username,
+                "Password":         password,
+                "CreateRole":       "true",
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Create", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert_user_info(username, False, True)
+    assert_user_can_login(username, password)
+
+
+def test_create_from_username_and_password_explicit_no_extra_abilities(username, password, response):
+    props = {
+                "Username":         username,
+                "Password":         password,
+                "CreateDatabase":   "false",
+                "CreateRole":       "false",
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Create", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert_user_info(username, False, False)
+    assert_user_can_login(username, password)
+
+
+def test_create_from_username_only(username, response):
     props = {
                 "Username":     username,
             }
@@ -89,7 +144,7 @@ def test_create_from_username(username, response):
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
                        }
-    assert len(retrieve_user_info(username)) == 1
+    assert_user_info(username, False, False)
     # can't assert login because there's no password
 
 

@@ -150,8 +150,11 @@ Resources:
 
   User:
     Type:                               "Custom::CFPostgres"
+    DependsOn:                          [ AdminSecretAttachment, UserSecretAttachment ]
     Properties:
       Resource:                         "User"
       ServiceToken:                     !Ref ServiceToken
       AdminSecretArn:                   !Ref AdminSecret
       UserSecretArn:                    !Ref UserSecret
+      CreateDatabase:                   true
+      CreateRole:                       false

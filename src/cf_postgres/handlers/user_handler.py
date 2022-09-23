@@ -69,8 +69,8 @@ def handle(request_type, conn, username, password, with_createdb, with_createrol
 
 def doCreate(conn, username, password, with_createdb, with_createrole, response):
     csr = conn.cursor()
-    createrole = "CREATEDB" if with_createrole else "NOCREATEDB"
-    createdb   = "CREATEROLE" if with_createdb else "NOCREATEROLE"
+    createdb   = "CREATEDB" if with_createdb else "NOCREATEDB"
+    createrole = "CREATEROLE" if with_createrole else "NOCREATEROLE"
     if password:
         csr.execute(f"create user {username} password '{password}' {createrole} {createdb}")
     else:
