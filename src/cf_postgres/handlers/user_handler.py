@@ -19,12 +19,12 @@ PROP_CREATEDB   = "CreateDatabase"
 PROP_CREATEROLE = "CreateRole"
 
 
-def try_handle(resource, request_type, conn, props, response):
-    if resource != RESOURCE_NAME:
+def try_handle(conn, request_type, resource_type, physical_id, props, response):
+    if resource_type != RESOURCE_NAME:
         return False
     (username, password, with_createdb, with_createrole) = load_user_info(props, response)
     if username:
-        handle(request_type, conn, username, password, with_createdb, with_createrole, response)
+        handle(conn, request_type, physical_id, username, password, with_createdb, with_createrole, response)
     return True
 
 
@@ -51,15 +51,18 @@ def load_user_info(props, response):
         return (None, None, None, None)
 
 
-def handle(request_type, conn, username, password, with_createdb, with_createrole, response):
-    logging.info(f"performing {request_type} for user {username}")
+def handle(conn, request_type, physical_id, username, password, with_createdb, with_createrole, response):
+    logging.info(f"performing {request_type} for resoure {physical_id}, user {username}")
     try:
         if request_type == ACTION_CREATE:
             doCreate(conn, username, password, with_createdb, with_createrole, response)
         elif request_type == ACTION_UPDATE:
-            doUpdate(conn, username, response)
+            if physical_id == username:
+                doUpdate(conn, username, password, with_createdb, with_createrole, response)
+            else:
+                util.report_failure(response, "Can not update username", physical_id)
         elif request_type == ACTION_DELETE:
-            doDelete(conn, username, response)
+            doDelete(conn, physical_id, response)
         else:
             util.report_failure(response, f"Unknown request type: {request_type}")
     except:
@@ -79,9 +82,16 @@ def doCreate(conn, username, password, with_createdb, with_createrole, response)
     util.report_success(response, username)
 
 
-def doUpdate(conn, username, response):
-    util.report_failure(response, "Can not update a user once created")
-    response['PhysicalResourceId'] = username
+def doUpdate(conn, username, password, with_createdb, with_createrole, response):
+    csr = conn.cursor()
+    createdb   = "CREATEDB" if with_createdb else "NOCREATEDB"
+    createrole = "CREATEROLE" if with_createrole else "NOCREATEROLE"
+    if password:
+        csr.execute(f"alter user {username} password '{password}' {createrole} {createdb}")
+    else:
+        csr.execute(f"alter user {username} password NULL {createrole} {createdb}")
+    conn.commit()
+    util.report_success(response, username)
 
 
 def doDelete(conn, username, response):

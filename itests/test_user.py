@@ -148,6 +148,25 @@ def test_create_from_username_only(username, response):
     # can't assert login because there's no password
 
 
+def test_update(username, password, response):
+    # we'll create the user with nothing, and then update
+    test_create_from_username_only(username, response)
+    props = {
+                "Username":         username,
+                "Password":         password,
+                "CreateDatabase":   "true",
+                "CreateRole":       "true",
+            }
+    with util.connect_to_db(local_pg8000_secret(None)) as conn:
+        assert user_handler.try_handle("User", "Update", conn, props, response)
+    assert response == {
+                       "Status": "SUCCESS",
+                       "PhysicalResourceId": username,
+                       }
+    assert_user_info(username, True, True)
+    assert_user_can_login(username, password)
+
+
 def test_delete(username, response):
     props = {
                 "Username":     username,
