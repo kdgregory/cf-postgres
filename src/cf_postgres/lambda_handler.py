@@ -19,6 +19,7 @@
 import boto3
 import json
 import logging
+import os
 import sys
 import uuid
 
@@ -30,8 +31,9 @@ from cf_postgres.constants import *
 from cf_postgres.handlers import test_handler, user_handler
 
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
+log_level = os.environ.get("LOG_LEVEL", logging.INFO)
+logging.getLogger().setLevel(log_level)
+
 
 HANDLERS = [
     test_handler, 
@@ -49,16 +51,19 @@ def handle(event, context):
         RSP_PHYSICAL_ID:    "to_be_populated",              # required, even for failure
     }
     try:
-        request_type = event[REQ_REQUEST_TYPE]
-        props = event[REQ_PROPERTIES]
-        resource = util.verify_property(props, response, REQ_RESOURCE_TYPE)
+        request_type = event.get(REQ_REQUEST_TYPE)
+        physical_id = event.get(REQ_PHYSICAL_ID)
+        props = event.get(REQ_PROPERTIES, {})
+        resource_type = util.verify_property(props, response, REQ_RESOURCE_TYPE)
         secret_arn = util.verify_property(props, response, REQ_ADMIN_SECRET)
-        if resource and secret_arn:
+        print("resource_type = {resource_type}")
+        print("secret_arn = {secret_arn}")
+        if resource_type and secret_arn:
             with open_connection(secret_arn) as conn:
-                try_handlers(resource, request_type, conn, props, response)
+                try_handlers(conn, request_type, resource_type, physical_id, props, response)
     except Exception as ex:
         util.report_failure(response, f"Unhandled exception: \"{ex}\"")
-        LOGGER.error("unhandled exception", exc_info=True)
+        logging.error("unhandled exception", exc_info=True)
     send_response(response_url, response)
 
 
@@ -67,22 +72,22 @@ def open_connection(secret_arn):
         to propagate.
         """
     connection_info = util.retrieve_pg8000_secret(secret_arn)
-    LOGGER.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
+    logging.info(f"connecting to {connection_info.get('host')}:{connection_info.get('port')}, "
                 f"database {connection_info.get('database')} as user {connection_info.get('user')}")
     return pg8000.dbapi.connect(**connection_info)
 
 
-def try_handlers(resource, request_type, conn, props, response):
+def try_handlers(conn, request_type, resource_type, physical_id, props, response):
     """ Runs through the list of handlers, returning once one handles the resource.
         Fails the invocation if there aren't any handlers.
         """
     for handler in HANDLERS:
-        if handler.try_handle(resource, request_type, conn, props, response):
+        if handler.try_handle(conn, request_type, resource_type, physical_id, props, response):
             return
-    util.report_failure(response, f"Unknown resource: \"{resource}\"")
+    util.report_failure(response, f"Unknown resource: \"{resource_type}\"")
 
 
 def send_response(response_url, response):
-    LOGGER.info(f"sending response to {response_url}: {response}")
+    logging.info(f"sending response to {response_url}: {response}")
     rsp = requests.put(response_url, data=json.dumps(response))
-    LOGGER.info(f"response status code: {rsp.status_code}")
+    logging.info(f"response status code: {rsp.status_code}")

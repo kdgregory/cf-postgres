@@ -27,10 +27,6 @@ import pg8000.dbapi
 from cf_postgres.constants import *
 
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
-
-
 def verify_property(request, response, name):
     """ Attempts to retrieve a named property from the request object. If not present,
         it sets the failure fields on the response object. Caller is responsible to
@@ -38,7 +34,7 @@ def verify_property(request, response, name):
         """
     value = request.get(name)
     if value:
-        LOGGER.debug(f"{name}: {value}")
+        logging.debug(f"{name}: {value}")
         return value
     else:
         report_failure(response, f"Missing property \"{name}\"")
@@ -60,7 +56,7 @@ def report_failure(response, reason, physical_resource_id=None):
     """ Populates the response for failed operation. Must include a reason; may
         include an actual resource ID, or will substitute with "unknown".
         """
-    LOGGER.error(f"request failed: {reason}", exc_info=True)
+    logging.error(f"request failed: {reason}", exc_info=True)
     response[RSP_STATUS]        = RSP_FAILURE
     response[RSP_REASON]        = reason
     response[RSP_PHYSICAL_ID]   = physical_resource_id or "unknown"
@@ -69,7 +65,7 @@ def report_failure(response, reason, physical_resource_id=None):
 def retrieve_json_secret(secret_arn):
     """ Retrieves the named secret and parses its contents as JSON.
         """
-    LOGGER.debug(f"retrieving secret: {secret_arn}")
+    logging.debug(f"retrieving secret: {secret_arn}")
     sm_client = boto3.client('secretsmanager')
     secret_json = sm_client.get_secret_value(SecretId=secret_arn)['SecretString']
     return json.loads(secret_json)
@@ -105,3 +101,21 @@ def connect_to_db(connection_info):
         except:
             time.sleep(0.25)
     raise Exception("timed-out waiting for container to start")
+
+
+def select_as_dict(connection_info, fn):
+    """ Executes a query and transforms the results to a name-value dict.
+        The query is passed as a function of the cursor object:
+        
+        results = select_as_dict(ci, lambda c: c.execute("..."))
+
+        Note that this opens its own connection to the database. The primary
+        use-case is integration testing, where we want to verify that the
+        mainline code commits/rolls-back its transactions.
+        """
+    with connect_to_db(connection_info) as conn:
+        csr = conn.cursor()
+        fn(csr)
+        rows = csr.fetchall()
+        keys = [k[0] for k in csr.description]
+        return [dict(zip(keys, row)) for row in rows]

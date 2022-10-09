@@ -4,8 +4,8 @@
 from cf_postgres import util
 
 
-def try_handle(resource, request_type, conn, props, response):
-    if resource != "Testing":
+def try_handle(conn, request_type, resource_type, physical_id, props, response):
+    if resource_type != "Testing":
         return False
     global saved_request_type, saved_connection
     saved_request_type = request_type

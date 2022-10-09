@@ -25,19 +25,18 @@ itest:	test
 	PYTHONPATH=$(LIB_DIR):$(DEV_LIB_DIR):$(SRC_DIR) PGPORT=$(PG_PORT) PGPASSWORD=$(PG_PASSWORD) python -m pytest itests/test*.py ; \
 	docker kill $${CONTAINER_ID}
 
-test:	$(LIB_DIR) quicktest
-
-quicktest:
+test:	$(LIB_DIR) $(DEV_LIB_DIR)
 	PYTHONPATH=$(LIB_DIR):$(DEV_LIB_DIR):$(SRC_DIR) python -m pytest tests/test*.py
 
-
-$(LIB_DIR): requirements.txt dev-requirements.txt
+$(LIB_DIR): requirements.txt
 	mkdir -p $(LIB_DIR)
 	touch $(LIB_DIR)
 	pip install -U -r requirements.txt -t $(LIB_DIR)
+
+$(DEV_LIB_DIR): requirements-dev.txt
 	mkdir -p $(DEV_LIB_DIR)
 	touch $(DEV_LIB_DIR)
-	pip install -U -r dev-requirements.txt -t $(DEV_LIB_DIR)
+	pip install -U -r requirements-dev.txt -t $(DEV_LIB_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)

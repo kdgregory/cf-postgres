@@ -136,8 +136,8 @@ Resources:
                                           "username": "example"
                                         }
         GenerateStringKey:              "password"
-        ExcludePunctuation:             true  # easier to select for those times that you need to copy/paste
-        PasswordLength:                 64    # double the default length to compensate for limited characters
+        ExcludePunctuation:             true
+        PasswordLength:                 64
 
 
   UserSecretAttachment:
@@ -150,8 +150,18 @@ Resources:
 
   User:
     Type:                               "Custom::CFPostgres"
+    DependsOn:                          [ AdminSecretAttachment ]
     Properties:
       Resource:                         "User"
       ServiceToken:                     !Ref ServiceToken
       AdminSecretArn:                   !Ref AdminSecret
       UserSecretArn:                    !Ref UserSecret
+      CreateDatabase:                   true
+      CreateRole:                       false
+
+
+Outputs:
+
+  UserRef:
+    Description:                        "The username, for use elsewhere"
+    Value:                              !Ref User
