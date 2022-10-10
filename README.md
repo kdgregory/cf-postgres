@@ -107,7 +107,7 @@ Creates, updates, or deletes a Postgres user.
   If this is "true" (case-insensitive), the user will be granted the permission
   to create new databases. Anything else, or missing, and they won't.
 
-  _Type_: String
+  _Type_: Boolean (String)
 
   _Required_: No
 
@@ -116,7 +116,7 @@ Creates, updates, or deletes a Postgres user.
   If this is "true" (case-insensitive), the user will be granted the permission
   to create new roles. Anything else, or missing, and they won't.
 
-  _Type_: String
+  _Type_: Boolean (String)
 
   _Required_: No
 
@@ -167,12 +167,97 @@ User:
 ```
 
 
+## Schema
+
+Creates, updates, or deletes a Postgres schema. Optionally grants permissions to
+use that schema.
+
+
+### Properties
+
+* `Name`
+
+  The name of the schema.
+
+  _Type_: String
+
+  _Required_: Yes
+
+* `Owner`
+
+  The name of a user (role) that owns the schema. If omitted, the schema will be
+  owned by the admin user (as identified in the specified secret).
+
+  _Type_: String
+
+  _Required_: No
+
+* `Public`
+
+  If true, the schema will be available for read and write by everyone.
+  This takes precedence over `Users`.
+
+  _Type_: Boolean (String)
+
+  _Required_: No
+
+
+* `ReadOnly`
+
+  If true, the schema will be available for read by everyone. This takes
+  precedence over `ReadOnlyUsers`.
+
+  _Type_: Boolean (String)
+
+  _Required_: No
+
+* `Users`
+
+  A list of users that will be granted full access to the schema (assuming
+  it is not already `Public`).
+
+  _Type_: List<String>
+
+  _Required_: No
+
+* `ReadOnlyUsers`
+
+  A list of users that will be granted read-only access to the schema (assuming
+  it is not already `ReadOnly`).
+
+  _Type_: List<String>
+
+  _Required_: No
+
+* `Cascade`
+
+  If "true", then deleting the schema will also delete all tables and other
+  resources in that schema. If "false" or omitted, and the schema is non-empty,
+  deletion will fail.
+
+  _Type_: Boolean (String)
+
+  _Required_: No
+
+
+### Return values
+
+The schema name.
+
+
+### Notes
+
+Creation uses `if not exist`, so can be used to bring an existing schema under
+CloudFormation control.
+
+
+### Examples
+
+
 
 # Roadmap
 
 `Database`: creates an additional, non-default database.
-
-`Schema`: creates a schema within an existing database.
 
 `Grant`: grants a user permission to perform some action.
 
