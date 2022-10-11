@@ -195,7 +195,16 @@ def test_delete_flow_missing_props(no_secret, mock_connection, response_holder):
                               "PhysicalResourceId": "unknown",
                               }
     
-def test_update_ignores_username_property(mock_secret, mock_connection, response_holder, mock_delete):
+    
+def test_delete(no_secret, mock_connection, response_holder, mock_delete):
+    props = {
+                "Username":     USERNAME,
+            }
+    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, response_holder)
+    mock_delete.assert_called_once_with(mock_connection, USERNAME, response_holder)
+    
+    
+def test_delete_ignores_username_property(no_secret, mock_connection, response_holder, mock_delete):
     props = {
                 "Username":       "anything",
             }
