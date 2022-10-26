@@ -12,8 +12,7 @@ from cf_postgres.handlers import test_handler
 ## event properties that will be asserted in response
 ################################################################################
 
-
-EXPECTED_REQUEST_TYPE   = "Create"
+EXPECTED_RESOURCE_TYPE  = "Testing"
 EXPECTED_SERVICE_TOKEN  = "arn:aws:lambda:us-east-1:123456789012:function:cf_postgres"
 EXPECTED_RESPONSE_URL   = "https://example.com/blahblahblah"
 EXPECTED_STACK_ID       = "arn:aws:cloudformation:us-east-1:123456789012:stack/CF-Postgres-Example-4/388d1040-18a6-11ed-8d5d-0e8fec9940a1"
@@ -31,17 +30,17 @@ EXPECTED_SECRET_ARN     = "arn:aws:secretsmanager:us-east-1:123456789012:secret:
 @pytest.fixture
 def event():
     return {
-        "RequestType": EXPECTED_REQUEST_TYPE,
-        "ServiceToken": EXPECTED_SERVICE_TOKEN,
-        "ResponseURL": EXPECTED_RESPONSE_URL,
-        "StackId": EXPECTED_STACK_ID,
-        "RequestId": EXPECTED_REQUEST_ID,
-        "LogicalResourceId": EXPECTED_LOGICAL_ID,
-        "ResourceType": "Custom::CFPostgres",
+        "RequestType":          "Bogus",
+        "ServiceToken":         EXPECTED_SERVICE_TOKEN,
+        "ResponseURL":          EXPECTED_RESPONSE_URL,
+        "StackId":              EXPECTED_STACK_ID,
+        "RequestId":            EXPECTED_REQUEST_ID,
+        "LogicalResourceId":    EXPECTED_LOGICAL_ID,
+        "ResourceType":         "Custom::CFPostgres",
         "ResourceProperties": {
-            "ServiceToken": EXPECTED_SERVICE_TOKEN,
-            "Resource": "Testing",
-            "AdminSecretArn": EXPECTED_SECRET_ARN,
+            "ServiceToken":     EXPECTED_SERVICE_TOKEN,
+            "Resource":         EXPECTED_RESOURCE_TYPE,
+            "AdminSecretArn":   EXPECTED_SECRET_ARN,
             "TestResourceName": EXPECTED_PHYSICAL_ID
         }
       }
@@ -75,12 +74,68 @@ def patched_lambda(monkeypatch, open_connection_mock, send_response_mock):
 ## testcases
 ################################################################################
 
-
-def test_happy_path(patched_lambda, event, open_connection_mock, send_response_mock):
+def test_create_happy_path(patched_lambda, event, open_connection_mock, send_response_mock):
+    event["RequestType"] = "Create"
     lambda_handler.handle(event, None)
     open_connection_mock.assert_called_once_with(EXPECTED_SECRET_ARN)
-    assert test_handler.saved_request_type == EXPECTED_REQUEST_TYPE
     assert test_handler.saved_connection == sentinel.connection
+    assert test_handler.saved_request_type == "Create"
+    assert test_handler.saved_resource_type == EXPECTED_RESOURCE_TYPE
+    assert test_handler.saved_physical_id == None
+    assert test_handler.saved_props == event.get("ResourceProperties")
+    assert test_handler.saved_old_props == {}
+    send_response_mock.assert_called_once_with(
+        EXPECTED_RESPONSE_URL,
+        {
+            "Status": "SUCCESS",
+            "StackId": EXPECTED_STACK_ID,
+            "RequestId": EXPECTED_REQUEST_ID,
+            "LogicalResourceId": EXPECTED_LOGICAL_ID,
+            "PhysicalResourceId": EXPECTED_PHYSICAL_ID,
+        })
+
+
+def test_update_happy_path(patched_lambda, event, open_connection_mock, send_response_mock):
+    expected_old_props = {
+        "Argle": "Bargle" 
+        }
+    event["RequestType"] = "Update"
+    event["PhysicalResourceId"] = EXPECTED_PHYSICAL_ID
+    event["OldResourceProperties"] = expected_old_props
+    lambda_handler.handle(event, None)
+    open_connection_mock.assert_called_once_with(EXPECTED_SECRET_ARN)
+    assert test_handler.saved_connection == sentinel.connection
+    assert test_handler.saved_request_type == "Update"
+    assert test_handler.saved_resource_type == EXPECTED_RESOURCE_TYPE
+    assert test_handler.saved_physical_id == EXPECTED_PHYSICAL_ID
+    assert test_handler.saved_props == event.get("ResourceProperties")
+    assert test_handler.saved_old_props == expected_old_props
+    send_response_mock.assert_called_once_with(
+        EXPECTED_RESPONSE_URL,
+        {
+            "Status": "SUCCESS",
+            "StackId": EXPECTED_STACK_ID,
+            "RequestId": EXPECTED_REQUEST_ID,
+            "LogicalResourceId": EXPECTED_LOGICAL_ID,
+            "PhysicalResourceId": EXPECTED_PHYSICAL_ID,
+        })
+
+
+def test_delete_happy_path(patched_lambda, event, open_connection_mock, send_response_mock):
+    expected_old_props = {
+        "Argle": "Bargle" 
+        }
+    event["RequestType"] = "Delete"
+    event["PhysicalResourceId"] = EXPECTED_PHYSICAL_ID
+    event["OldResourceProperties"] = expected_old_props
+    lambda_handler.handle(event, None)
+    open_connection_mock.assert_called_once_with(EXPECTED_SECRET_ARN)
+    assert test_handler.saved_connection == sentinel.connection
+    assert test_handler.saved_request_type == "Delete"
+    assert test_handler.saved_resource_type == EXPECTED_RESOURCE_TYPE
+    assert test_handler.saved_physical_id == EXPECTED_PHYSICAL_ID
+    assert test_handler.saved_props == event.get("ResourceProperties")
+    assert test_handler.saved_old_props == expected_old_props
     send_response_mock.assert_called_once_with(
         EXPECTED_RESPONSE_URL,
         {

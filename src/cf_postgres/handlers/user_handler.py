@@ -19,7 +19,7 @@ PROP_CREATEDB   = "CreateDatabase"
 PROP_CREATEROLE = "CreateRole"
 
 
-def try_handle(conn, request_type, resource_type, physical_id, props, response):
+def try_handle(conn, request_type, resource_type, physical_id, props, old_props, response):
     if resource_type != RESOURCE_NAME:
         return False
     (username, password, with_createdb, with_createrole) = load_user_info(props, response)

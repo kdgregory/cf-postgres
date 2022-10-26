@@ -9,6 +9,7 @@ REQ_LOGICAL_ID      = 'LogicalResourceId'
 REQ_PHYSICAL_ID     = 'PhysicalResourceId'
 REQ_REQUEST_TYPE    = 'RequestType'
 REQ_PROPERTIES      = 'ResourceProperties'
+REQ_OLD_PROPERTIES  = 'OldResourceProperties'
 REQ_RESPONSE_URL    = 'ResponseURL'
 
 REQ_RESOURCE_TYPE   = 'Resource'

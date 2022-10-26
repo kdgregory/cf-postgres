@@ -71,7 +71,7 @@ def test_create_from_username_and_password_no_extra_abilities(username, password
             "Password":     password,
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Create", "User", None, props, response)
+        assert user_handler.try_handle(conn, "Create", "User", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -87,7 +87,7 @@ def test_create_from_username_and_password_with_createdb(username, password, res
             "CreateDatabase":   "true",
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Create", "User", None, props, response)
+        assert user_handler.try_handle(conn, "Create", "User", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -103,7 +103,7 @@ def test_create_from_username_and_password_with_createrole(username, password, r
             "CreateRole":       "true",
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Create", "User", None, props, response)
+        assert user_handler.try_handle(conn, "Create", "User", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -120,7 +120,7 @@ def test_create_from_username_and_password_explicit_no_extra_abilities(username,
             "CreateRole":       "false",
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Create", "User", None, props, response)
+        assert user_handler.try_handle(conn, "Create", "User", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -134,7 +134,7 @@ def test_create_from_username_only(username, response):
             "Username":     username,
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Create", "User", None, props, response)
+        assert user_handler.try_handle(conn, "Create", "User", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -153,7 +153,7 @@ def test_update(username, password, response):
             "CreateRole":       "true",
             }
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Update", "User", username, props, response)
+        assert user_handler.try_handle(conn, "Update", "User", username, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,
@@ -172,7 +172,7 @@ def test_delete(username, response):
         conn.commit()
     assert len(retrieve_user_info(username)) == 1   # verify that we created before trying to delete
     with util.connect_to_db(local_pg8000_secret(None)) as conn:
-        assert user_handler.try_handle(conn, "Delete", "User", username, props, response)
+        assert user_handler.try_handle(conn, "Delete", "User", username, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": username,

@@ -88,7 +88,7 @@ def test_create_flow(no_secret, mock_connection, response_holder):
                 "Username": USERNAME,
                 "Password": PASSWORD,
             }
-    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": USERNAME,
@@ -97,7 +97,7 @@ def test_create_flow(no_secret, mock_connection, response_holder):
 
 def test_create_flow_missing_props(no_secret, mock_connection, response_holder):
     props = { }
-    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": "Must specify username or secret",
@@ -112,7 +112,7 @@ def test_create_from_props(no_secret, mock_connection, response_holder, mock_cre
                 "CreateDatabase": "true",
                 "CreateRole":     "TRUE",
             }
-    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, USERNAME, PASSWORD, True, True, response_holder)
 
 
@@ -120,7 +120,7 @@ def test_create_from_secret(mock_secret, mock_connection, response_holder, mock_
     props = {
                 "UserSecretArn": SECRET_ARN,
             }
-    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_secret.assert_called_once_with(SECRET_ARN)
     mock_create.assert_called_once_with(mock_connection, USERNAME, PASSWORD, False, False, response_holder)
 
@@ -129,7 +129,7 @@ def test_update_flow(no_secret, mock_connection, response_holder):
     props = {
                 "Username":     USERNAME,
             }
-    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": USERNAME,
@@ -137,7 +137,7 @@ def test_update_flow(no_secret, mock_connection, response_holder):
     
 def test_update_flow_missing_props(no_secret, mock_connection, response_holder):
     props = {}
-    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": "Must specify username or secret",
@@ -149,7 +149,7 @@ def test_update_flow_different_username(no_secret, mock_connection, response_hol
     props = {
                 "Username": "something_else",
             }
-    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": "Can not update username",
@@ -163,7 +163,7 @@ def test_update_from_props(mock_secret, mock_connection, response_holder, mock_u
                 "CreateDatabase": "true",
                 "CreateRole":     "TRUE",
             }
-    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     mock_update.assert_called_once_with(mock_connection, USERNAME, None, True, True, response_holder)
 
 
@@ -171,7 +171,7 @@ def test_update_from_secret(mock_secret, mock_connection, response_holder, mock_
     props = {
                 "UserSecretArn":    SECRET_ARN,
             }
-    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     mock_update.assert_called_once_with(mock_connection, USERNAME, PASSWORD, False, False, response_holder)
     
 
@@ -179,7 +179,7 @@ def test_delete_flow(no_secret, mock_connection, response_holder):
     props = {
                 "Username":     USERNAME,
             }
-    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": USERNAME,
@@ -188,7 +188,7 @@ def test_delete_flow(no_secret, mock_connection, response_holder):
 
 def test_delete_flow_missing_props(no_secret, mock_connection, response_holder):
     props = {}
-    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": "Must specify username or secret",
@@ -200,7 +200,7 @@ def test_delete(no_secret, mock_connection, response_holder, mock_delete):
     props = {
                 "Username":     USERNAME,
             }
-    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     mock_delete.assert_called_once_with(mock_connection, USERNAME, response_holder)
     
     
@@ -208,5 +208,5 @@ def test_delete_ignores_username_property(no_secret, mock_connection, response_h
     props = {
                 "Username":       "anything",
             }
-    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, response_holder)
+    assert user_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, USERNAME, props, {}, response_holder)
     mock_delete.assert_called_once_with(mock_connection, USERNAME, response_holder)

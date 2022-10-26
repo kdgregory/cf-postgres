@@ -82,7 +82,7 @@ def test_create_default_owner_no_explicit_acls(db_admin, schema_name, response):
             "Name":     schema_name,
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -96,7 +96,7 @@ def test_create_default_owner_public_access(db_admin, schema_name, response):
             "Public":   "true",
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -123,7 +123,7 @@ def test_create_default_owner_public_readonly_access(db_admin, schema_name, resp
             "ReadOnly":   "true",
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -151,7 +151,7 @@ def test_create_default_owner_explicit_user_acls(randval, db_admin, schema_name,
             "ReadOnlyUsers":    [ user_2 ]
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -187,7 +187,7 @@ def test_create_default_owner_mixed_public_and_user_acls(randval, db_admin, sche
             "ReadOnlyUsers":    [ user_2 ]
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -226,7 +226,7 @@ def test_create_explicit_owner_no_explicit_acls(randval, schema_name, response):
             "Owner":    owner,
             }
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -240,11 +240,11 @@ def test_delete(randval, db_admin, schema_name, response):
             }
     # first create the schema and verify that it's there
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     assert_schema(schema_name, db_admin, {}, {})
     # then delete and verify that it's no longer there
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, response)
+        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -259,14 +259,14 @@ def test_delete_cascade(randval, db_admin, schema_name, response):
             }
     # first create the schema, along with a table inside it
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
         csr = conn.cursor()
         csr.execute(f"create table {schema_name}.t{randval} ( x int not null )")
         conn.commit()
     # then delete and verify that it's no longer there
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, response)
+        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, {}, response)
     assert response == {
                        "Status": "SUCCESS",
                        "PhysicalResourceId": schema_name,
@@ -280,14 +280,14 @@ def test_delete_failure_no_cascade(randval, db_admin, schema_name, response):
             }
     # first create the schema, along with a table inside it
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, response)
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, props, {}, response)
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
         csr = conn.cursor()
         csr.execute(f"create table {schema_name}.t{randval} ( x int not null )")
         conn.commit()
     # then attempt to delete
     with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
-        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, response)
+        assert schema_handler.try_handle(conn, "Delete", "Schema", schema_name, props, {}, response)
     assert response == {
                        "Status": "FAILED",
                        "PhysicalResourceId": schema_name,

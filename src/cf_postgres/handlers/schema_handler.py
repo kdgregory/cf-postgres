@@ -21,7 +21,7 @@ PROP_ROUSERS    = "ReadOnlyUsers"
 PROP_CASCADE    = "Cascade"
 
 
-def try_handle(conn, request_type, resource_type, physical_id, props, response):
+def try_handle(conn, request_type, resource_type, physical_id, props, old_props, response):
     if resource_type != RESOURCE_NAME:
         return False
     schema_name = util.verify_property(props, response, PROP_NAME)

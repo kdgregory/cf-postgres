@@ -73,7 +73,7 @@ def mock_delete(monkeypatch):
 
 # this tests the end-to-end flow, mocking only the connection
 def test_create_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": SCHEMA_NAME,
@@ -81,42 +81,42 @@ def test_create_flow(mock_connection, response_holder):
 
 
 def test_create_simple(mock_connection, response_holder, mock_create):
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], [], response_holder)
 
 
 def test_create_with_owner(mock_connection, response_holder, mock_create):
     props = copy.deepcopy(DEFAULT_PROPS)
     props['Owner'] = "example"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, "example", False, False, [], [], response_holder)
 
 
 def test_create_with_public_access(mock_connection, response_holder, mock_create):
     props = copy.deepcopy(DEFAULT_PROPS)
     props['Public'] = "true"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, True, False, [], [], response_holder)
 
 
 def test_create_with_public_readonly(mock_connection, response_holder, mock_create):
     props = copy.deepcopy(DEFAULT_PROPS)
     props['ReadOnly'] = "true"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, True, [], [], response_holder)
 
 
 def test_create_with_explicit_users(mock_connection, response_holder, mock_create):
     props = copy.deepcopy(DEFAULT_PROPS)
     props['Users'] = ["foo", "bar", "baz"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, ["foo", "bar", "baz"], [], response_holder)
 
 
 def test_create_with_readonly_users(mock_connection, response_holder, mock_create):
     props = copy.deepcopy(DEFAULT_PROPS)
     props['ReadOnlyUsers'] = ["argle", "bargle"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], ["argle", "bargle"], response_holder)
 
 
@@ -127,12 +127,12 @@ def test_create_with_all_acls_set(mock_connection, response_holder, mock_create)
     props['ReadOnly'] = "true"
     props['Users'] = ["foo", "bar", "baz"]
     props['ReadOnlyUsers'] = ["argle", "bargle"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
     mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, True, True, ["foo", "bar", "baz"], ["argle", "bargle"], response_holder)
 
 
 def test_update_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": SCHEMA_NAME,
@@ -141,7 +141,7 @@ def test_update_flow(mock_connection, response_holder):
 def test_update_flow_missing_props(mock_connection, response_holder):
     props = copy.deepcopy(DEFAULT_PROPS)
     del props["Name"]
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": 'Missing property "Name"',
@@ -150,12 +150,12 @@ def test_update_flow_missing_props(mock_connection, response_holder):
 
 
 def test_update_simple(mock_connection, response_holder, mock_update):
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
     mock_update.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], [], response_holder)
 
 
 def test_delete_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": SCHEMA_NAME,
@@ -165,7 +165,7 @@ def test_delete_flow(mock_connection, response_holder):
 def test_delete_flow_missing_props(mock_connection, response_holder):
     props = copy.deepcopy(DEFAULT_PROPS)
     del props["Name"]
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
                               "Reason": 'Missing property "Name"',
@@ -174,7 +174,7 @@ def test_delete_flow_missing_props(mock_connection, response_holder):
 
 
 def test_delete(mock_connection, response_holder, mock_delete):
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
     mock_delete.assert_called_once_with(mock_connection, SCHEMA_NAME, True, response_holder)
 
 
@@ -182,5 +182,5 @@ def test_delete_ignores_name_property(mock_connection, response_holder, mock_del
     props = {
                 "Name":       "anything",
             }
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, response_holder)
+    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
     mock_delete.assert_called_once_with(mock_connection, SCHEMA_NAME, False, response_holder)
