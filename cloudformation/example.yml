@@ -122,7 +122,7 @@ Resources:
       CopyTagsToSnapshot:               true
 
   ##
-  ## create the new user
+  ## create a new user
   ##
 
   UserSecret:
@@ -158,6 +158,20 @@ Resources:
       UserSecretArn:                    !Ref UserSecret
       CreateDatabase:                   true
       CreateRole:                       false
+
+  ##
+  ## and a schema that they can use
+  ##
+
+  Schema:
+    Type:                               "Custom::CFPostgres"
+    DependsOn:                          [ AdminSecretAttachment ]
+    Properties:
+      Resource:                         "Schema"
+      ServiceToken:                     !Ref ServiceToken
+      AdminSecretArn:                   !Ref AdminSecret
+      Name:                             "Example"
+      Users:                            [ !Ref User ]
 
 
 Outputs:
