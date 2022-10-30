@@ -19,7 +19,6 @@
 import boto3
 import json
 import logging
-import os
 import time
 
 import pg8000.dbapi
@@ -39,6 +38,14 @@ def verify_property(request, response, name):
     else:
         report_failure(response, f"Missing property \"{name}\"")
         return None
+    
+    
+def get_boolean_prop(props, name, default=False):
+    value = props.get(name)
+    if value:
+        return value.lower() == "true"
+    else:
+        return default
 
 
 def report_success(response, physical_resource_id, data=None):

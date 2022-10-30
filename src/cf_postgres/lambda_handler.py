@@ -28,7 +28,7 @@ import requests
 
 from cf_postgres import util
 from cf_postgres.constants import *
-from cf_postgres.handlers import test_handler, user_handler
+from cf_postgres.handlers import test_handler, user_handler, schema_handler
 
 
 log_level = os.environ.get("LOG_LEVEL", logging.INFO)
@@ -36,8 +36,9 @@ logging.getLogger().setLevel(log_level)
 
 
 HANDLERS = [
-    test_handler, 
-    user_handler, 
+    test_handler,
+    user_handler,
+    schema_handler,
     ]
 
 
@@ -54,13 +55,14 @@ def handle(event, context):
         request_type = event.get(REQ_REQUEST_TYPE)
         physical_id = event.get(REQ_PHYSICAL_ID)
         props = event.get(REQ_PROPERTIES, {})
+        old_props = event.get(REQ_OLD_PROPERTIES, {})
         resource_type = util.verify_property(props, response, REQ_RESOURCE_TYPE)
         secret_arn = util.verify_property(props, response, REQ_ADMIN_SECRET)
         print("resource_type = {resource_type}")
         print("secret_arn = {secret_arn}")
         if resource_type and secret_arn:
             with open_connection(secret_arn) as conn:
-                try_handlers(conn, request_type, resource_type, physical_id, props, response)
+                try_handlers(conn, request_type, resource_type, physical_id, props, old_props, response)
     except Exception as ex:
         util.report_failure(response, f"Unhandled exception: \"{ex}\"")
         logging.error("unhandled exception", exc_info=True)
@@ -77,12 +79,12 @@ def open_connection(secret_arn):
     return pg8000.dbapi.connect(**connection_info)
 
 
-def try_handlers(conn, request_type, resource_type, physical_id, props, response):
+def try_handlers(conn, request_type, resource_type, physical_id, props, old_props, response):
     """ Runs through the list of handlers, returning once one handles the resource.
         Fails the invocation if there aren't any handlers.
         """
     for handler in HANDLERS:
-        if handler.try_handle(conn, request_type, resource_type, physical_id, props, response):
+        if handler.try_handle(conn, request_type, resource_type, physical_id, props, old_props, response):
             return
     util.report_failure(response, f"Unknown resource: \"{resource_type}\"")
 
