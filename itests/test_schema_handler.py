@@ -295,3 +295,134 @@ def test_delete_failure_no_cascade(randval, db_admin, schema_name, response):
                        }
     # and verify that it's still there
     assert len(itest_helpers.retrieve_schema_info(schema_name)) == 1
+
+
+def test_update_change_name(randval, db_admin, schema_name, response):
+    create_props = {
+            "Name":     schema_name
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Create", "Schema", None, create_props, {}, response)
+    assert_schema(schema_name, db_admin, {}, {})
+    new_name = "new" + schema_name
+    update_props = {
+            "Name":     new_name
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Update", "Schema", schema_name, update_props, create_props, response)
+    assert_schema(new_name, db_admin, {}, {})
+
+
+def test_update_change_owner(randval, db_admin, schema_name, response):
+    # initial schema creation: default owner
+    create_props = {
+            "Name":     schema_name
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Create", "Schema", schema_name, create_props, {}, response)
+    assert_schema(schema_name, db_admin, {}, {})
+    new_owner = itest_helpers.create_user(f"user_{randval}_0")
+    update_props = {
+            "Name":     schema_name,
+            "Owner":    new_owner
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Update", "Schema", schema_name, update_props, create_props, response)
+    assert_schema(schema_name, new_owner, {}, {})
+
+
+def test_update_public_to_readonly(randval, db_admin, schema_name, response):
+    create_props = {
+            "Name":     schema_name,
+            "Public":   "true",
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Create", "Schema", schema_name, create_props, {}, response)
+    # we're going to assume this worked
+    update_props = {
+            "Name":     schema_name,
+            "ReadOnly": "true",
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Update", "Schema", schema_name, update_props, create_props, response)
+    assert_schema(schema_name, db_admin,
+                  {
+                      db_admin: set([PERM_SCHEMA_USAGE, PERM_SCHEMA_CREATE]),   # adding any grants adds owner grant
+                      "PUBLIC": set([PERM_SCHEMA_USAGE]),
+                  },
+                  {
+                      # schema owner always has full privileges
+                      "PUBLIC": set([PERM_TABLE_SELECT,
+                                    PERM_SEQUENCE_SELECT, PERM_SEQUENCE_USAGE,
+                                    PERM_FUNCTION_EXECUTE,
+                                    ]),
+                  })
+
+
+def test_update_readonly_to_public(randval, db_admin, schema_name, response):
+    create_props = {
+            "Name":     schema_name,
+            "ReadOnly": "true",
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Create", "Schema", schema_name, create_props, {}, response)
+    # we're going to assume this worked
+    update_props = {
+            "Name":     schema_name,
+            "Public":   "true",
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Update", "Schema", schema_name, update_props, create_props, response)
+    assert_schema(schema_name, db_admin,
+                  {
+                      db_admin: set([PERM_SCHEMA_USAGE, PERM_SCHEMA_CREATE]),   # adding any grants adds owner grant
+                      "PUBLIC": set([PERM_SCHEMA_USAGE, PERM_SCHEMA_CREATE]),
+                  },
+                  {
+                      # schema owner always has full privileges
+                      "PUBLIC": set([PERM_TABLE_INSERT, PERM_TABLE_SELECT, PERM_TABLE_UPDATE, PERM_TABLE_DELETE,
+                                    PERM_TABLE_TRUNCATE, PERM_TABLE_REFERENCES, PERM_TABLE_TRIGGER,
+                                    PERM_SEQUENCE_SELECT, PERM_SEQUENCE_UPDATE, PERM_SEQUENCE_USAGE,
+                                    PERM_FUNCTION_EXECUTE,
+                                    PERM_TYPE_USAGE,
+                                    ]),
+                  })
+
+
+def test_update_users(randval, db_admin, schema_name, response):
+    user_1 = itest_helpers.create_user(f"user_{randval}_1")
+    user_2 = itest_helpers.create_user(f"user_{randval}_2")
+    create_props = {
+            "Name":             schema_name,
+            "Users":            [ user_1 ],
+            "ReadOnlyUsers":    [ user_2 ]
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Create", "Schema", schema_name, create_props, {}, response)
+    # we're going to assume this worked
+    update_props = {
+            "Name":             schema_name,
+            "Users":            [ user_2 ],
+            "ReadOnlyUsers":    [ user_1 ]
+            }
+    with util.connect_to_db(itest_helpers.local_pg8000_secret(None)) as conn:
+        assert schema_handler.try_handle(conn, "Update", "Schema", schema_name, update_props, create_props, response)
+    assert_schema(schema_name, db_admin,
+                  {
+                      db_admin: set([PERM_SCHEMA_USAGE, PERM_SCHEMA_CREATE]),
+                      user_2:   set([PERM_SCHEMA_USAGE, PERM_SCHEMA_CREATE]),
+                      user_1:   set([PERM_SCHEMA_USAGE]),
+                  },
+                  {
+                      # schema owner always has full privileges
+                      user_2:   set([PERM_TABLE_INSERT, PERM_TABLE_SELECT, PERM_TABLE_UPDATE, PERM_TABLE_DELETE,
+                                    PERM_TABLE_TRUNCATE, PERM_TABLE_REFERENCES, PERM_TABLE_TRIGGER,
+                                    PERM_SEQUENCE_SELECT, PERM_SEQUENCE_UPDATE, PERM_SEQUENCE_USAGE,
+                                    PERM_FUNCTION_EXECUTE,
+                                    PERM_TYPE_USAGE,
+                                    ]),
+                      user_1:   set([PERM_TABLE_SELECT,
+                                    PERM_SEQUENCE_SELECT, PERM_SEQUENCE_USAGE,
+                                    PERM_FUNCTION_EXECUTE,
+                                    ]),
+                  })

@@ -8,29 +8,30 @@
 import copy
 import json
 import pytest
-from unittest.mock import Mock, patch, ANY
+from unittest.mock import Mock, call, patch, ANY
 
 from cf_postgres import util
 from cf_postgres.handlers import schema_handler
+from more_itertools.more import side_effect
 
 
 ################################################################################
-# event properties that will be asserted
+# properties from the default event
 ################################################################################
 
+RESOURCE_TYPE       = "Schema"
+ADMIN_SECRET_ARN    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:database-1-admin-5z4FyE"
+SCHEMA_NAME         = "example"
+OWNER               = "me"
+USERS               = ["argle", "bargle"]
+RO_USERS            = ["foo", "bar", "baz"]
 
-RESOURCE_TYPE         = "Schema"
-ADMIN_SECRET_ARN      = "arn:aws:secretsmanager:us-east-1:123456789012:secret:database-1-admin-5z4FyE"
-SCHEMA_NAME           = "example"
-OWNER                 = "me"
-USERS                 = ["argle", "bargle"]
-RO_USERS              = ["foo", "bar", "baz"]
-
-DEFAULT_PROPS         = {
-                        "Name":             SCHEMA_NAME,
-                        "Cascade":          "true"
-                        }
-
+IS_PUBLIC           = True
+IS_PUBLIC_STR       = "true"
+IS_READONLY         = False
+IS_READONLY_STR     = "false"
+CASCADE             = False
+CASCADE_STR         = "true"
 
 ################################################################################
 ## fixtures
@@ -42,145 +43,113 @@ def mock_connection():
 
 
 @pytest.fixture
+def default_props():
+    # the tests just check equality; modify or delete as desired
+    return {
+        'Name':             SCHEMA_NAME,
+        'Owner':            OWNER,
+        'Public':           IS_PUBLIC_STR,
+        'ReadOnly':         IS_READONLY_STR,
+        'Users':            USERS,
+        'ReadOnlyUsers':    RO_USERS,
+        "Cascade":          CASCADE_STR,
+        }
+
+
+@pytest.fixture
 def response_holder():
     return {}
 
 
 @pytest.fixture
-def mock_create(monkeypatch):
-    mock = Mock()
-    monkeypatch.setattr(schema_handler, 'doCreate', mock)
-    return mock
+def extract_props_spy(monkeypatch):
+    spy = Mock(side_effect=schema_handler._extract_props)
+    monkeypatch.setattr(schema_handler, '_extract_props', spy)
+    return spy
 
 
 @pytest.fixture
-def mock_update(monkeypatch):
-    mock = Mock()
-    monkeypatch.setattr(schema_handler, 'doUpdate', mock)
-    return mock
+def do_create_spy(monkeypatch):
+    spy = Mock(side_effect=schema_handler._doCreate)
+    monkeypatch.setattr(schema_handler, '_doCreate', spy)
+    return spy
 
 
 @pytest.fixture
-def mock_delete(monkeypatch):
-    mock = Mock()
-    monkeypatch.setattr(schema_handler, 'doDelete', mock)
-    return mock
+def do_update_spy(monkeypatch):
+    spy = Mock(side_effect=schema_handler._doUpdate)
+    monkeypatch.setattr(schema_handler, '_doUpdate', spy)
+    return spy
+
+
+@pytest.fixture
+def do_delete_spy(monkeypatch):
+    spy = Mock(side_effect=schema_handler._doDelete)
+    monkeypatch.setattr(schema_handler, '_doDelete', spy)
+    return spy
 
 
 ################################################################################
 ## testcases
+##
+## these tests dig into the internals of the handler more than "unit" tests
+## should ... I suppose I could just let them exercise the class and leave
+## everything else to the integration tests, but :shrug:
 ################################################################################
 
-# this tests the end-to-end flow, mocking only the connection
-def test_create_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, {}, response_holder)
+def test_extract_props(default_props):
+    (owner_name, is_public, is_readonly, users, ro_users) = schema_handler._extract_props(default_props)
+    assert owner_name == OWNER
+    assert is_public == IS_PUBLIC
+    assert is_readonly == IS_READONLY
+    assert users == USERS
+    assert ro_users == RO_USERS
+        
+
+def test_create_happy_path(monkeypatch, mock_connection, extract_props_spy, do_create_spy, do_update_spy, do_delete_spy, default_props, response_holder):
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, default_props, {}, response_holder)
+    do_create_spy.assert_called_once_with(mock_connection, SCHEMA_NAME, default_props, response_holder)
+    do_update_spy.assert_not_called()
+    do_delete_spy.assert_not_called()
+    extract_props_spy.assert_called_once_with(default_props)
+    assert response_holder == {
+                              "Status": "SUCCESS",
+                              "PhysicalResourceId": SCHEMA_NAME,
+                              }        
+
+def test_update_happy_path(monkeypatch, mock_connection, extract_props_spy, do_create_spy, do_update_spy, do_delete_spy, default_props, response_holder):
+    old_props = copy.deepcopy(default_props)
+    old_props['Users'] = RO_USERS
+    old_props['ReadOnlyUsers'] = USERS
+    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, default_props, old_props, response_holder)
+    do_create_spy.assert_not_called()
+    do_update_spy.assert_called_once_with(mock_connection, SCHEMA_NAME, SCHEMA_NAME, default_props, old_props, response_holder)
+    do_delete_spy.assert_not_called()
+    extract_props_spy.assert_has_calls([call(default_props), call(old_props)])
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": SCHEMA_NAME,
                               }
+        
 
-
-def test_create_simple(mock_connection, response_holder, mock_create):
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, DEFAULT_PROPS, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], [], response_holder)
-
-
-def test_create_with_owner(mock_connection, response_holder, mock_create):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['Owner'] = "example"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, "example", False, False, [], [], response_holder)
-
-
-def test_create_with_public_access(mock_connection, response_holder, mock_create):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['Public'] = "true"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, True, False, [], [], response_holder)
-
-
-def test_create_with_public_readonly(mock_connection, response_holder, mock_create):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['ReadOnly'] = "true"
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, True, [], [], response_holder)
-
-
-def test_create_with_explicit_users(mock_connection, response_holder, mock_create):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['Users'] = ["foo", "bar", "baz"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, ["foo", "bar", "baz"], [], response_holder)
-
-
-def test_create_with_readonly_users(mock_connection, response_holder, mock_create):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['ReadOnlyUsers'] = ["argle", "bargle"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], ["argle", "bargle"], response_holder)
-
-
-def test_create_with_all_acls_set(mock_connection, response_holder, mock_create):
-    # the implementation will figure this out
-    props = copy.deepcopy(DEFAULT_PROPS)
-    props['Public'] = "true"
-    props['ReadOnly'] = "true"
-    props['Users'] = ["foo", "bar", "baz"]
-    props['ReadOnlyUsers'] = ["argle", "bargle"]
-    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, props, {}, response_holder)
-    mock_create.assert_called_once_with(mock_connection, SCHEMA_NAME, None, True, True, ["foo", "bar", "baz"], ["argle", "bargle"], response_holder)
-
-
-def test_update_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
+def test_delete_happy_path(monkeypatch, mock_connection, extract_props_spy, do_create_spy, do_update_spy, do_delete_spy, default_props, response_holder):
+    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, default_props, {}, response_holder)
+    do_create_spy.assert_not_called()
+    do_update_spy.assert_not_called()
+    do_delete_spy.assert_called_once_with(mock_connection, SCHEMA_NAME, default_props, response_holder)
     assert response_holder == {
                               "Status": "SUCCESS",
                               "PhysicalResourceId": SCHEMA_NAME,
-                              }
+                              }    
 
-def test_update_flow_missing_props(mock_connection, response_holder):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    del props["Name"]
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
+
+def test_exception_in_action_method(monkeypatch, mock_connection, default_props, response_holder):
+    mock = Mock(side_effect=Exception("I don't work!"))
+    monkeypatch.setattr(schema_handler, '_doCreate', mock)
+    assert schema_handler.try_handle(mock_connection, "Create", RESOURCE_TYPE, None, default_props, {}, response_holder)
+    mock.assert_called_once_with(mock_connection, SCHEMA_NAME, default_props, response_holder)
     assert response_holder == {
                               "Status": "FAILED",
-                              "Reason": 'Missing property "Name"',
-                              "PhysicalResourceId": "unknown",
-                              }
-
-
-def test_update_simple(mock_connection, response_holder, mock_update):
-    assert schema_handler.try_handle(mock_connection, "Update", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
-    mock_update.assert_called_once_with(mock_connection, SCHEMA_NAME, None, False, False, [], [], response_holder)
-
-
-def test_delete_flow(mock_connection, response_holder):
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
-    assert response_holder == {
-                              "Status": "SUCCESS",
-                              "PhysicalResourceId": SCHEMA_NAME,
-                              }
-
-
-def test_delete_flow_missing_props(mock_connection, response_holder):
-    props = copy.deepcopy(DEFAULT_PROPS)
-    del props["Name"]
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
-    assert response_holder == {
-                              "Status": "FAILED",
-                              "Reason": 'Missing property "Name"',
-                              "PhysicalResourceId": "unknown",
-                              }
-
-
-def test_delete(mock_connection, response_holder, mock_delete):
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, DEFAULT_PROPS, {}, response_holder)
-    mock_delete.assert_called_once_with(mock_connection, SCHEMA_NAME, True, response_holder)
-
-
-def test_delete_ignores_name_property(mock_connection, response_holder, mock_delete):
-    props = {
-                "Name":       "anything",
-            }
-    assert schema_handler.try_handle(mock_connection, "Delete", RESOURCE_TYPE, SCHEMA_NAME, props, {}, response_holder)
-    mock_delete.assert_called_once_with(mock_connection, SCHEMA_NAME, False, response_holder)
+                              "PhysicalResourceId": ANY,
+                              "Reason": ANY
+                              } 

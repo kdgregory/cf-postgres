@@ -23,8 +23,8 @@ def local_pg8000_secret(ignored):
         'database':         "postgres",
         'application_name': "cf-postgres-testing",
     }
-    
-    
+
+
 def create_user(username):
     """ Creates a user without any privileges/login. Returns the username
         as a convenience.
@@ -34,8 +34,8 @@ def create_user(username):
         csr.execute(f"create user {username}")
         conn.commit()
         return username
-    
- 
+
+
 def retrieve_schema_info(schema_name):
     """ Retrieves basic info about a schema.
         """
@@ -49,11 +49,11 @@ def retrieve_schema_info(schema_name):
     return util.select_as_dict(
                 local_pg8000_secret(None),
                 lambda c:  c.execute(sql, (schema_name,)))
-    
+
 
 Permission = namedtuple("Permission", ["permission", "object_type", "is_grantable"], defaults=[None, False])
 
-    
+
 def _transform_permissions(data):
     """ Transforms the returned data from ACL queries into a dict keyed by grantee,
         with a set of permissions as value. Also translates a null grantee to PUBLIC.
@@ -85,15 +85,15 @@ def retrieve_schema_permissions(schema_name):
                   u.usename as grantee,
                   g.is_grantable
           from    grants g
-          left join pg_user u 
+          left join pg_user u
           on      u.usesysid = g.grantee_oid
           where   g.nspname = %s
           """
     return _transform_permissions(util.select_as_dict(
                 local_pg8000_secret(None),
                 lambda c:  c.execute(sql, (schema_name,))))
-    
-    
+
+
 def retrieve_default_schema_permissions(schema_name):
     sql = """
           with    grants as
@@ -112,7 +112,7 @@ def retrieve_default_schema_permissions(schema_name):
                   u.usename as grantee,
                   g.is_grantable
           from    grants g
-          left join pg_user u 
+          left join pg_user u
           on      u.usesysid = g.grantee_oid
           where   g.nspname = %s
           """
