@@ -28,7 +28,7 @@ import requests
 
 from cf_postgres import util
 from cf_postgres.constants import *
-from cf_postgres.handlers import test_handler, user_handler
+from cf_postgres.handlers import test_handler, user_handler, schema_handler
 
 
 log_level = os.environ.get("LOG_LEVEL", logging.INFO)
@@ -36,8 +36,9 @@ logging.getLogger().setLevel(log_level)
 
 
 HANDLERS = [
-    test_handler, 
-    user_handler, 
+    test_handler,
+    user_handler,
+    schema_handler,
     ]
 
 

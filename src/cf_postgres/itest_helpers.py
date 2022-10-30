@@ -36,6 +36,18 @@ def create_user(username):
         return username
 
 
+def retrieve_user_info(username):
+    """ Retrieves the pg_roles row for the specified username, or None.
+        """
+    rows = util.select_as_dict(
+                local_pg8000_secret(None),
+                lambda c:  c.execute("select * from pg_roles where rolname = %s", (username,)))
+    if rows:
+        return rows[0]
+    else:
+        return None
+
+
 def retrieve_schema_info(schema_name):
     """ Retrieves basic info about a schema.
         """
